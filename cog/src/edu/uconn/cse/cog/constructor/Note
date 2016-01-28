@@ -1,0 +1,6 @@
+Scene.v().getCallGraph()
+soot.Main.main(args);
+ContextSensitiveCallGraph cscg = Scene.v().getContextSensitiveCallGraph(); //need to use Spark or Paddle
+Scene.v().containsClass
+Scene.v().getMethod
+Scene.v().getReachableMethods().contains
