@@ -2,7 +2,6 @@ package edu.uconn.cse.cog.constructor;
 
 import edu.uconn.cse.cog.model.CCGNode;
 import edu.uconn.cse.cog.model.CCGraph;
-import edu.uconn.cse.cog.util.Util;
 
 import soot.Body;
 import soot.Local;
@@ -24,21 +23,16 @@ import soot.jimple.toolkits.callgraph.Sources;
 import soot.tagkit.LineNumberTag;
 import soot.util.Chain;
 
-import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 
-public class GraphBuilderAbstract<T> {
+public class GraphBuilderAbstract {
 
   public static int countMatch;
   protected String libFile;

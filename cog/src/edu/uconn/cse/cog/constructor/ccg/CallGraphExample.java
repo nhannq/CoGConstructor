@@ -35,7 +35,7 @@ public class CallGraphExample {
   public static void main(String[] args) {
     List<String> argsList = new ArrayList<String>(Arrays.asList(args));
     argsList.addAll(Arrays.asList(new String[] {"-w",// "-p", "cg.spark", "on-fly-cg:true",
-//        "-main-class", "testers.CallGraphs",// main-class
+        // "-main-class", "testers.CallGraphs",// main-class
         "testers.CallGraphs",// argument classes
     // "testers.A" //
         }));

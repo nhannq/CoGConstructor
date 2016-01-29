@@ -6,9 +6,11 @@ import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Sources;
 import soot.jimple.toolkits.callgraph.Targets;
 
 import java.util.Iterator;
+import java.util.List;
 
 public class CallGraphUtils {
   // print the information of which invocation is made inside the method methodSig
@@ -39,6 +41,23 @@ public class CallGraphUtils {
 
         }
       }
+    }
+  }
+
+  public static void printEntryPoints() {
+    CallGraph cg = Scene.v().getCallGraph();
+    List<SootMethod> entryPoints = Scene.v().getEntryPoints();
+    for (SootMethod sMethod : entryPoints) {
+      System.out.println("EntryPoint " + sMethod.getName() + " " + sMethod.getSignature() + " of "
+          + sMethod.getDeclaringClass().getName());
+      Iterator sources = new Sources(cg.edgesInto(sMethod));
+
+      while (sources.hasNext()) {
+        SootMethod src = (SootMethod) sources.next();
+        if (src.getDeclaringClass().getName().contains("org.apache"))
+          System.out.println(sMethod + " might be called by " + src);
+      }
+      break;
     }
   }
 }
