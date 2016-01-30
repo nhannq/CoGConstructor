@@ -83,7 +83,7 @@ public class HBaseCallGraphConstructor extends GraphBuilderAbstract {
     // add custom entry points
     // https://github.com/Sable/soot/wiki/Using-Soot-with-custom-entry-points
     List<String> customEntryPoints = new ArrayList<String>();
-    Util.readFile(cassCG.entryPointFile, customEntryPoints);
+    Util.readFile(cassCG.startingPointFile, customEntryPoints);
 
     List addedEntryPoints = new ArrayList();
     for (String ePoint : customEntryPoints) {

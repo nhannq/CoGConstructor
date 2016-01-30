@@ -1,6 +1,7 @@
 package edu.uconn.cse.cog.util;
 
 import soot.Body;
+import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
@@ -8,7 +9,11 @@ import soot.Unit;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Sources;
 import soot.jimple.toolkits.callgraph.Targets;
+import soot.util.queue.QueueReader;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -44,12 +49,12 @@ public class CallGraphUtils {
     }
   }
 
-  public static void printEntryPoints() {
+  public static void printStartingPoints() {
     CallGraph cg = Scene.v().getCallGraph();
     List<SootMethod> entryPoints = Scene.v().getEntryPoints();
     for (SootMethod sMethod : entryPoints) {
-      System.out.println("EntryPoint " + sMethod.getName() + " " + sMethod.getSignature() + " of "
-          + sMethod.getDeclaringClass().getName());
+      System.out.println("StaringPoint " + sMethod.getName() + " " + sMethod.getSignature()
+          + " of " + sMethod.getDeclaringClass().getName());
       Iterator sources = new Sources(cg.edgesInto(sMethod));
 
       while (sources.hasNext()) {
@@ -57,7 +62,54 @@ public class CallGraphUtils {
         if (src.getDeclaringClass().getName().contains("org.apache"))
           System.out.println(sMethod + " might be called by " + src);
       }
-      break;
     }
   }
+
+  public static void printReachableMethods(String fileName) {
+    try {
+      FileWriter f = new FileWriter(fileName);
+      QueueReader<MethodOrMethodContext> reallyRechableMethods =
+          Scene.v().getReachableMethods().listener();
+      while (reallyRechableMethods.hasNext()) {
+        MethodOrMethodContext m = reallyRechableMethods.next();
+        f.write(m.method().getSignature() + "\n");
+      }
+      f.close();
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+
+  }
+  
+  public static List getAddedStartingPointList(String startingPointFile) {
+    List<String> customStartingPoints = new ArrayList<String>();
+    List addedStartingPoints = new ArrayList();
+    Util.readFile(startingPointFile, customStartingPoints);
+    
+    for (String sPoint : customStartingPoints) {
+      String className = sPoint.split(":")[0].replace("<", "");
+      SootClass c = Scene.v().forceResolve(className, SootClass.BODIES);
+      c.setApplicationClass();
+      Scene.v().loadNecessaryClasses();
+      SootMethod method = null;
+      try {
+        // get method by subsignature
+        method = c.getMethod(sPoint.split(":")[1].trim().replace(">", ""));
+        if (method == null)
+          System.err.println("NULL METHOD");
+        System.out.println("method Sub Signature " + method.getSubSignature());
+
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+
+      if (method != null)
+        addedStartingPoints.add(method);
+      // System.err.println(method.getSignature()); //print to get the entry points with correct
+      // format
+    }
+    return addedStartingPoints;
+  }
+
 }

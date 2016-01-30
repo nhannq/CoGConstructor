@@ -37,7 +37,7 @@ public class GraphBuilderAbstract {
   public static int countMatch;
   protected String libFile;
   public String mainClass;
-  public String entryPointFile;
+  public String startingPointFile;
   public String optionAPIFile;
   public boolean parseOneOption;
   public String oAPI;
@@ -59,8 +59,7 @@ public class GraphBuilderAbstract {
 
   public void initialize() {
     libFile = "data/cass.txt";
-    entryPointFile = "data/cassPIIEntryPoints.txt";
-    String startingPointFile = "data/startingPoint.txt";
+    startingPointFile = "data/cassPIIEntryPoints.txt";
     parseOneOption = false;
     oAPI = "getAuthenticator";
     version = "1.0.0";
@@ -79,7 +78,7 @@ public class GraphBuilderAbstract {
       // get the property value and print it out
       mainClass = prop.getProperty("mainClass");
       libFile = prop.getProperty("libFile");
-      entryPointFile = prop.getProperty("entryPointFile");
+      startingPointFile = prop.getProperty("startingPointFile");
       optionAPIFile = prop.getProperty("optionAPIFile");
       if (Integer.parseInt(prop.getProperty("parseOneOption")) == 1) {
         parseOneOption = true;
@@ -281,20 +280,20 @@ public class GraphBuilderAbstract {
     }
   }
 
-  public void buildPartICoGNoStack(CallGraph cg, int firstSrcId, SootMethod firstTarget) {
-    System.out.println("buildPartICoGNoStack");
-    if (!firstTarget.getSignature().contains(programPrefix)) {
+  public void buildCCGNoStack(CallGraph cg, int firstSrcId, SootMethod firstSource) {
+    System.out.println("buildCCGNoStack");
+    if (!firstSource.getSignature().contains(programPrefix)) {
       return;
     }
 
-    sMStack.push(firstTarget);
+    sMStack.push(firstSource);
     idStack.push(firstSrcId);
     while (!sMStack.empty()) {
       SootMethod target = sMStack.pop();
       int srcId = idStack.pop();
-
-      int targetId = graph.containsNode(target.getSignature());
       System.out.println("Pop " + srcId + ": " + target.getSignature());
+      
+      int targetId = graph.containsNode(target.getSignature());
       if (targetId != -1) {
         graph.updateOutIdForNode(targetId, srcId);
         System.out.println("Visited");
@@ -304,20 +303,11 @@ public class GraphBuilderAbstract {
         node.addOutNodeId(srcId);
         graph.addNewNode(node.getId(), node);
         // Iterator sources = new Sources(cg.edgesInto(target));
+        
         Iterator<Edge> edges = cg.edgesInto(target);
-
         boolean isStartingPoint = true;
         while (edges.hasNext()) {
           Edge edge = edges.next();
-          // edge.srcStmt()
-
-          // StringBuilder srcSig = new StringBuilder("NULL"); // name of srcSig which calls a
-          // starting
-          // // point which can be JVM,
-          // Thrift lib
-
-          // if (sources.hasNext()) {
-          // while (sources.hasNext()) {
           SootMethod parent = (SootMethod) edge.getSrc();
           // the value of srcSig might not be correct
           // srcSig.append(parent.getSignature() + "::::");
@@ -326,14 +316,8 @@ public class GraphBuilderAbstract {
             System.out.println("externalInvocationMethods");
             continue;
           }
-          // SootMethod p2 = edge.src();
-          // if (parent != p2) {
-          // System.out.println("DIFFERENT " + parent + " :::: " + p2);
-          // }
-
           // it seems edge.src() and edge.getSrc() return the same result
           if (!parent.getSubSignature().equals("void <clinit>()")
-          // && !target.getSubSignature().contains("void <init>")
           ) {
             if (parent.getSignature().contains(programPrefix)) {
               System.out.println("Push " + node.getId() + ": " + target.getSignature()
@@ -391,43 +375,40 @@ public class GraphBuilderAbstract {
           // return;
         }
       }
+      break;
     }
   }
 
-
   public int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI) {
-
     this.currentOptionAPI = optionAPI;
     countMatch = 0;
-    SootMethod target = null;
+    SootMethod source;
 
     boolean isBreak = false;
 
-    // Chain<SootClass> classes = Scene.v().getClasses();
     for (String className : confClassNames) {
       if (Scene.v().containsClass(className)) {
         // for (SootClass sClass : classes) {
         SootClass sClass = Scene.v().getSootClass(className);
-        // System.out.println(sClass.getName());
-        target = null;
+        System.out.println("analyseCallGraph " + sClass.getName());
+        source = null;
 
         // if (className.contains(sClass.getName())) {
         try {
-          target = sClass.getMethodByName(optionAPI);
+          // example: getInt() of Hadoop
+          source = sClass.getMethodByName(optionAPI);
         } catch (Exception e) {
-
         }
 
-        if (target != null) {
-
-          System.out.println("Checking " + target.getSignature());
+        if (source != null) {
+          System.out.println("Checking " + source.getSignature());
           // if (graph.containsNode(target.getSignature()) == -1) {
           System.out.println("Findng incoming edge");
-          CCGNode node = new CCGNode(target.getSignature()); // we need to reset NEXT_ID
-          System.out.println("FIRST NODE " + node.getId());
+          CCGNode node = new CCGNode(source.getSignature()); // we need to reset NEXT_ID
+          System.out.println("FIRST NODE ID " + node.getId());
           // node.addOutNodeId(Integer.MAX_VALUE);
           int graphID = 1;
-          Iterator sources = new Sources(cg.edgesInto(target));
+          Iterator sources = new Sources(cg.edgesInto(source));
           int nbMethodsWhichUseThisOption = 0;
           while (sources.hasNext()) {
             graph = new CCGraph(this.version, graphID);
@@ -436,7 +417,7 @@ public class GraphBuilderAbstract {
             idStack.clear();
             SootMethod src = (SootMethod) sources.next();
             System.out.println("");
-            System.out.println(target + " " + target.getParameterCount()
+            System.out.println(source + " " + source.getParameterCount()
                 + " params might be called by " + src);
             // we need to consider this to avoid exploding graph, for example
             // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
@@ -444,13 +425,13 @@ public class GraphBuilderAbstract {
 
             if (!src.getSubSignature().equals("void <clinit>()")) {
               try {
-                buildPartICoGNoStack(cg, node.getId(), src);
+                buildCCGNoStack(cg, node.getId(), src);
                 // System.out.println("NOT HERE");
               } catch (Exception e) {
                 e.printStackTrace();
               }
             } else { // if we do not deal with clinit, we need to create a starting node here
-              graph.addStartingNode(target.getSignature(), currentOptionAPI, node.getId());
+              graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
             }
 
             countMatch++;
