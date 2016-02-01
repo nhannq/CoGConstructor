@@ -280,6 +280,8 @@ public class GraphBuilderAbstract {
     }
   }
 
+  int nbVertices = 0;
+
   public void buildCCGNoStack(CallGraph cg, int firstSrcId, SootMethod firstSource) {
     System.out.println("buildCCGNoStack");
     if (!firstSource.getSignature().contains(programPrefix)) {
@@ -292,7 +294,7 @@ public class GraphBuilderAbstract {
       SootMethod target = sMStack.pop();
       int srcId = idStack.pop();
       System.out.println("Pop " + srcId + ": " + target.getSignature());
-      
+
       int targetId = graph.containsNode(target.getSignature());
       if (targetId != -1) {
         graph.updateOutIdForNode(targetId, srcId);
@@ -300,10 +302,11 @@ public class GraphBuilderAbstract {
         // return;
       } else {
         CCGNode node = new CCGNode(target.getSignature());
+        nbVertices++;
         node.addOutNodeId(srcId);
         graph.addNewNode(node.getId(), node);
         // Iterator sources = new Sources(cg.edgesInto(target));
-        
+
         Iterator<Edge> edges = cg.edgesInto(target);
         boolean isStartingPoint = true;
         while (edges.hasNext()) {
@@ -317,8 +320,7 @@ public class GraphBuilderAbstract {
             continue;
           }
           // it seems edge.src() and edge.getSrc() return the same result
-          if (!parent.getSubSignature().equals("void <clinit>()")
-          ) {
+          if (!parent.getSubSignature().equals("void <clinit>()")) {
             if (parent.getSignature().contains(programPrefix)) {
               System.out.println("Push " + node.getId() + ": " + target.getSignature()
                   + " called-by " + parent.getSignature() + " : " + parent.getSubSignature()
@@ -375,9 +377,11 @@ public class GraphBuilderAbstract {
           // return;
         }
       }
-      break;
+      // break; //for testing
     }
   }
+
+  Set<String> markedAnalysisPoints = new HashSet<String>();
 
   public int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI) {
     this.currentOptionAPI = optionAPI;
@@ -410,37 +414,44 @@ public class GraphBuilderAbstract {
           int graphID = 1;
           Iterator sources = new Sources(cg.edgesInto(source));
           int nbMethodsWhichUseThisOption = 0;
+          markedAnalysisPoints.clear();
           while (sources.hasNext()) {
             graph = new CCGraph(this.version, graphID);
             graph.addNewNode(node.getId(), node);
             sMStack.clear();
             idStack.clear();
             SootMethod src = (SootMethod) sources.next();
-            System.out.println("");
-            System.out.println(source + " " + source.getParameterCount()
-                + " params might be called by " + src);
-            // we need to consider this to avoid exploding graph, for example
-            // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
-            // in Cassandra 2.1.8
+            nbVertices = 0;
+            if (!markedAnalysisPoints.contains(src.getSignature())) {
+              markedAnalysisPoints.add(src.getSignature());
+              System.out.println("");
+              System.out.println(source + " " + source.getParameterCount()
+                  + " params might be called by " + src);
+              // we need to consider this to avoid exploding graph, for example
+              // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
+              // in Cassandra 2.1.8
 
-            if (!src.getSubSignature().equals("void <clinit>()")) {
-              try {
-                buildCCGNoStack(cg, node.getId(), src);
-                // System.out.println("NOT HERE");
-              } catch (Exception e) {
-                e.printStackTrace();
+              if (!src.getSubSignature().equals("void <clinit>()")) {
+                try {
+                  buildCCGNoStack(cg, node.getId(), src);
+
+                  // System.out.println("NOT HERE");
+                } catch (Exception e) {
+                  e.printStackTrace();
+                }
+              } else { // if we do not deal with clinit, we need to create a starting node here
+                graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
               }
-            } else { // if we do not deal with clinit, we need to create a starting node here
-              graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
-            }
 
-            countMatch++;
-            getCallSiteInformation(src, optionAPI);
-            // return;
-            isBreak = true;
-            graphID += graph.princetonDFS();
-            // graph.removeCycle();
-            // graph.DFS();
+              countMatch++;
+              getCallSiteInformation(src, optionAPI);
+              // return;
+              isBreak = true;
+              graphID += graph.princetonDFS();
+              System.out.println("nbVertices " + nbVertices);
+              // graph.removeCycle();
+              // graph.DFS();
+            }
           }
           // }
           // else {

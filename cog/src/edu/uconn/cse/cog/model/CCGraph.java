@@ -1,7 +1,5 @@
 package edu.uconn.cse.cog.model;
 
-import edu.uconn.cse.cog.model.CCGNode.Color;
-
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -38,8 +36,6 @@ public class CCGraph {
       return optionAPI;
     }
   }
-
-
 
   public CCGraph(String version, int graphID) {
     this.version = version;
@@ -94,73 +90,6 @@ public class CCGraph {
     return nodes.size();
   }
 
-  public int DFS() {
-    System.out.println("DFS");
-    System.out.println("startingNodes size " + startingNodes.size());
-    HashMap<String, Integer> optionAPIToGraphID = new HashMap<String, Integer>();
-    graphID = 1;
-    try {
-      for (StartingNode sMethod : startingNodes.keySet()) { //
-        // HashMap<Integer, CCGNode> tmpNodes = new HashMap<Integer, CCGNode>(nodes);
-
-        optionAPI = sMethod.toString();
-        if (optionAPIToGraphID.containsKey(optionAPI)) {
-          graphID = optionAPIToGraphID.get(optionAPI) + 1;
-        } else {
-          File file = new File("ccg" + version + "/" + optionAPI + "/");
-          if (!file.exists()) {
-            if (file.mkdir()) {
-            } else {
-              System.out.println("Failed to create directory!");
-            }
-          }
-        }
-        optionAPIToGraphID.put(optionAPI, graphID);
-
-        DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-
-        Document doc = docBuilder.newDocument();
-        Element graphElement = doc.createElement("graph");
-        doc.appendChild(graphElement);
-
-        fWriter = new FileWriter("ccg" + version + "/" + optionAPI + "/" + graphID);
-
-        // new FileOutputStream(version + "-result/" + optionAPI + "-" + graphID + ".xml");
-        visited.clear();
-        // for (Integer v : nodes.keySet()) {
-        // nodes.get(v).visited = false;
-        // nodes.get(v).mark = Color.WHITE;
-        // }
-        fWriter.write("ROOT " + optionAPI + "\n");
-        System.out.println("ROOT " + optionAPI);
-        Element rootXML = doc.createElement("root");
-        graphElement.appendChild(rootXML);
-
-        performsDFS(-1, startingNodes.get(sMethod), doc, rootXML);
-
-        TransformerFactory transformerFactory = TransformerFactory.newInstance();
-        Transformer transformer = transformerFactory.newTransformer();
-        DOMSource source = new DOMSource(doc);
-        StreamResult result =
-            new StreamResult(new File("ccg" + version + "/" + optionAPI + "/" + graphID + ".xml"));
-        System.out.println("Writing Result to " + "ccg" + version + "/" + optionAPI + "/" + graphID
-            + ".xml");
-
-        // Output to console for testing
-        // StreamResult result = new StreamResult(System.out);
-
-        transformer.transform(source, result);
-
-        fWriter.close();
-        // nodes = tmpNodes;
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return startingNodes.size();
-  }
-
   private boolean[] marked; // marked[v] = has vertex v been marked?
   private int[] edgeTo; // edgeTo[v] = previous vertex on path to v
   private boolean[] onStack; // onStack[v] = is vertex on the stack?
@@ -202,7 +131,8 @@ public class CCGraph {
 
         // new FileOutputStream(version + "-result/" + optionAPI + "-" + graphID + ".xml");
         startingNodeId = startingNodes.get(sMethod);
-        marked = new boolean[nodes.get(startingNodeId).getMaxID() + 1]; //temporarily use this, we can optimize later
+        marked = new boolean[nodes.get(startingNodeId).getMaxID() + 1]; // temporarily use this, we
+                                                                        // can optimize later
         onStack = new boolean[nodes.get(startingNodeId).getMaxID() + 1];
         edgeTo = new int[nodes.get(startingNodeId).getMaxID() + 1];
         cycle = null;
@@ -326,84 +256,6 @@ public class CCGraph {
   // }
   // return true;
   // }
-
-  private void performsDFS(int prevNodeId, int nodeId, Document doc, Element rootXML) {
-    try {
-      visited.add(nodeId);
-      CCGNode node = nodes.get(nodeId);
-      // node.visited = true;
-      // node.mark = Color.GREY;
-      fWriter.write("Visiting " + prevNodeId + "-" + nodeId + " " + node.toString() + "\n");
-      Element nodeXML = doc.createElement("node");
-      rootXML.appendChild(nodeXML);
-
-      Attr attr = doc.createAttribute("id");
-      attr.setValue(Integer.toString(nodeId));
-      nodeXML.setAttributeNode(attr);
-
-      Element nodeStmt = doc.createElement("nodeStmt");
-      nodeStmt.appendChild(doc.createTextNode(node.toString()));
-      nodeXML.appendChild(nodeStmt);
-
-      Element previousNodeId = doc.createElement("prevNodeId");
-      previousNodeId.appendChild(doc.createTextNode(Integer.toString(prevNodeId)));
-      nodeXML.appendChild(previousNodeId);
-
-      if (node.hasNoOutNode()) {
-        fWriter.write("--------\n");
-        return;
-      } else {
-        Set<Integer> outNodeIds = node.getOutNodeIds();
-        // System.out.println("outNodeIds Size " + outNodeIds.size());
-        for (Integer outNodeId : outNodeIds) {
-          // nodes.get(nodeId).nvVisitedDescendants++;
-          // System.out.println("Child " + outNodeId);
-          // if (nodes.get(outNodeId).mark == Color.GREY) {
-          // fWriter.write("There is a cycle here\n");
-          // } else {
-          // // fWriter.write("There is NO cycle\n");
-          // }
-
-          if (!visited.contains(outNodeId)) {
-            // System.out.println("Adding " + outNodeId);
-            performsDFS(nodeId, outNodeId, doc, rootXML);
-          } else {
-
-            fWriter.write("Did visit " + nodeId + "-" + outNodeId + "\n");
-
-            // fWriter.write("visited Times " + nodes.get(outNodeId).nvVisitedDescendants + "\n");
-            // fWriter.write("Nb descendants " + nodes.get(outNodeId).getNbOutNodes() + "\n");
-            // if (!visitedAllDescentdants(outNodeId)) {
-            // fWriter.write("There is a cycle here\n");
-            // } else {
-            // fWriter.write("There is NO cycle\n");
-            // }
-
-            Element outNodeXML = doc.createElement("node");
-            rootXML.appendChild(outNodeXML);
-
-            Attr outAttr = doc.createAttribute("id");
-            outAttr.setValue(Integer.toString(outNodeId));
-            outNodeXML.setAttributeNode(outAttr);
-
-            Element outNodeStmt = doc.createElement("nodeStmt");
-            outNodeStmt.appendChild(doc.createTextNode(nodes.get(outNodeId).toString()));
-            outNodeXML.appendChild(outNodeStmt);
-
-            Element outPreviousNodeId = doc.createElement("prevNodeId");
-            outPreviousNodeId.appendChild(doc.createTextNode(Integer.toString(nodeId)));
-            outNodeXML.appendChild(outPreviousNodeId);
-
-          }
-        }
-        // node.mark = Color.BLACK;
-        // nodes.get(nodeId).visitedAllDescentdants = true;
-      }
-      // visited.remove(nodeId);
-    } catch (Exception e) {
-
-    }
-  }
 
   HashMap<Integer, HashSet<Integer>> needToBeRemovedEdge = new HashMap<Integer, HashSet<Integer>>();
 
