@@ -25,7 +25,7 @@ import java.util.Set;
 
 public class ElasticCallGraphConstructor extends GraphBuilderAbstract {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     List<String> argsList = new ArrayList<String>(Arrays.asList(args));
     ElasticCallGraphConstructor cassCG = new ElasticCallGraphConstructor();
     cassCG.initialize();

@@ -24,6 +24,7 @@ import soot.tagkit.LineNumberTag;
 import soot.util.Chain;
 
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
@@ -48,7 +49,7 @@ public class GraphBuilderAbstract {
   public int detectRechableMethod;
   public int printAllRealRechableMethod;
   public String version;
-
+  protected FileWriter generalInfoFW;
   public CCGraph graph;
 
   protected static String programPrefix;
@@ -57,7 +58,7 @@ public class GraphBuilderAbstract {
 
   Set<Unit> initialSeedData = new HashSet<Unit>();
 
-  public void initialize() {
+  protected void initialize() {
     libFile = "data/cass.txt";
     startingPointFile = "data/cassPIIEntryPoints.txt";
     parseOneOption = false;
@@ -101,13 +102,9 @@ public class GraphBuilderAbstract {
     System.out.println("METHOD " + oAPI);// Util.getMethodName(optionSource));
     System.out.println("mainClass " + mainClass);
     System.out.println("libFile " + libFile);
-
-
-
   }
 
-
-  public boolean printInvokeStmtLineNumber(String callsiteInfo, InvokeExpr vI, String methodName,
+  private boolean printInvokeStmtLineNumber(String callsiteInfo, InvokeExpr vI, String methodName,
       int lineNumber) {
     // System.out.println("line number with virtualinvoke: " + vI.getMethodRef().name() + " at "
     // + lineNumber);
@@ -129,7 +126,7 @@ public class GraphBuilderAbstract {
     return false;
   }
 
-  public void getCallSiteInformation(SootMethod src, String methodName) {
+  private void getCallSiteInformation(SootMethod src, String methodName) {
     Body b = src.getActiveBody();
     // System.out.println(b.getLocalCount());
     // System.out.println("Line number " + b.getJavaSourceStartLineNumber());
@@ -260,7 +257,8 @@ public class GraphBuilderAbstract {
 
   final static int MAX_LEVEL = 0;
 
-  void processExternalLibCall(CallGraph cg, String directParent, SootMethod target, int level) {
+  private void processExternalLibCall(CallGraph cg, String directParent, SootMethod target,
+      int level) {
     if (level > MAX_LEVEL) {
       return;
     }
@@ -282,7 +280,7 @@ public class GraphBuilderAbstract {
 
   int nbVertices = 0;
 
-  public void buildCCGNoStack(CallGraph cg, int firstSrcId, SootMethod firstSource) {
+  private void buildCCGNoStack(CallGraph cg, int firstSrcId, SootMethod firstSource) {
     System.out.println("buildCCGNoStack");
     if (!firstSource.getSignature().contains(programPrefix)) {
       return;
@@ -383,7 +381,7 @@ public class GraphBuilderAbstract {
 
   Set<String> markedAnalysisPoints = new HashSet<String>();
 
-  public int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI) {
+  protected int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI) throws IOException {
     this.currentOptionAPI = optionAPI;
     countMatch = 0;
     SootMethod source;
@@ -399,7 +397,7 @@ public class GraphBuilderAbstract {
 
         // if (className.contains(sClass.getName())) {
         try {
-          // example: getInt() of Hadoop
+          // example: getInt() in Hadoop
           source = sClass.getMethodByName(optionAPI);
         } catch (Exception e) {
         }
@@ -449,6 +447,7 @@ public class GraphBuilderAbstract {
               isBreak = true;
               graphID += graph.princetonDFS();
               System.out.println("nbVertices " + nbVertices);
+              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
               // graph.removeCycle();
               // graph.DFS();
             }

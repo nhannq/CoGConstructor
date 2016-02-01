@@ -23,10 +23,11 @@ import java.util.List;
 import java.util.Set;
 
 public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
+  static CassandraCallGraphConstructor cassCG;
 
   public static void main(String[] args) {
     List<String> argsList = new ArrayList<String>(Arrays.asList(args));
-    CassandraCallGraphConstructor cassCG = new CassandraCallGraphConstructor();
+    cassCG = new CassandraCallGraphConstructor();
     cassCG.initialize();
     Util.readFile(cassCG.libFile, argsList);
     argsList.add("-p");
@@ -83,86 +84,7 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
 
     CallGraphUtils.printStartingPoints();
 
-    programPrefix = "org.apache.cassandra";
-    externalInvocationMethods = "org.apache.cassandra.thrift.Cassandra";
-
-    List<String> optionAPIS = new ArrayList<String>();
-    Util.readFile(cassCG.optionAPIFile, optionAPIS);
-
-    CallGraph cg = Scene.v().getCallGraph();
-    Set<String> confClasses = new HashSet<String>() {
-      /**
-       * 
-       */
-      private static final long serialVersionUID = 1L;
-
-      {
-        add("org.apache.cassandra.config.DatabaseDescriptor");
-      }
-    };
-
-    if (cassCG.detectRechableMethod == 0) {
-      int couldnotFind = 0;
-      if (!cassCG.parseOneOption) {
-        for (String oAPI : optionAPIS) {
-          // String oAPI = "getAuthenticator";
-          System.out.println("------------\n");
-          System.out.println("Analyzing " + oAPI);
-          if (cassCG.analyseCallGraph(cg, confClasses, oAPI) == 0) {
-            couldnotFind++;
-          }
-          System.out.println("============\n");
-
-        }
-      } else {
-        System.out.println("Analyzing " + cassCG.oAPI);
-        cassCG.analyseCallGraph(cg, confClasses, cassCG.oAPI);
-        System.out.println("============\n");
-        // cassCG.graph.DFS();
-      }
-
-      System.out.println("CoundnotFind " + couldnotFind);
-    } else {
-      FileWriter fWriter = null;
-      try {
-        fWriter = new FileWriter(cassCG.rechableMethodFileName);
-        List<String> reachableMethods = new ArrayList<String>();
-        Util.readFile(cassCG.mightRechableMethodFileName, reachableMethods);
-        for (String methodSig2 : reachableMethods) {
-          System.out.println("Checking " + methodSig2);
-          SootMethod sm2 = null;
-          try {
-            sm2 = Scene.v().getMethod(methodSig2);
-          } catch (Exception e) {
-
-          }
-          if (sm2 != null) {
-            // System.out.println("METHOD::: " + sm2.getSignature() + " at "
-            // + sm2.getJavaSourceStartLineNumber());
-
-            if (Scene.v().getReachableMethods().contains(sm2)) {
-              // System.out.println("REACHABLEMETHOD");
-              fWriter.write(methodSig2 + "\n");
-            }
-          }
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      } finally {
-        try {
-          fWriter.close();
-        } catch (IOException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-      }
-
-      // print all real rechable methods
-      if (cassCG.printAllRealRechableMethod == 1) {
-        CallGraphUtils.printReachableMethods(cassCG.rechableMethodFileName);
-      }
-
-    }
+    cassCG.constructGraph();
 
     // String testClass = "org.apache.cassandra.db.ColumnFamilyStore";
     // if (Scene.v().containsClass(testClass)) {
@@ -226,6 +148,99 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     //
     // infoflow.computeInfoflow(appPath, "", entryPointList, sources, sinks);
     System.out.println("Done " + CassandraCallGraphConstructor.class.getName());
+  }
+
+  private void constructGraph() {
+    programPrefix = "org.apache.cassandra";
+    externalInvocationMethods = "org.apache.cassandra.thrift.Cassandra";
+
+    List<String> optionAPIS = new ArrayList<String>();
+    Util.readFile(cassCG.optionAPIFile, optionAPIS);
+
+    CallGraph cg = Scene.v().getCallGraph();
+    Set<String> confClasses = new HashSet<String>() {
+      /**
+       * 
+       */
+      private static final long serialVersionUID = 1L;
+
+      {
+        add("org.apache.cassandra.config.DatabaseDescriptor");
+      }
+    };
+
+    if (detectRechableMethod == 0) {
+      int couldnotFind = 0;
+      try {
+        generalInfoFW = new FileWriter("Cassandra" + version + ".txt");
+        if (!cassCG.parseOneOption) {
+          for (String oAPI : optionAPIS) {
+            System.out.println("------------\n");
+            System.out.println("Analyzing " + oAPI);
+            generalInfoFW.write(oAPI + "\n");
+            int rs = analyseCallGraph(cg, confClasses, oAPI);
+            if (rs == 0) {
+              couldnotFind++;
+            }
+
+            System.out.println("============\n");
+            generalInfoFW.write(rs + "\n");
+            generalInfoFW.write("==========\n");
+          }
+        } else {
+          System.out.println("Analyzing " + oAPI);
+          analyseCallGraph(cg, confClasses, oAPI);
+          System.out.println("============\n");
+          // cassCG.graph.DFS();
+        }
+
+        System.out.println("CoundnotFind " + couldnotFind);
+        cassCG.generalInfoFW.close();
+      } catch (Exception e) {
+
+      }
+    } else {
+      FileWriter fWriter = null;
+      try {
+        fWriter = new FileWriter(cassCG.rechableMethodFileName);
+        List<String> reachableMethods = new ArrayList<String>();
+        Util.readFile(cassCG.mightRechableMethodFileName, reachableMethods);
+        for (String methodSig2 : reachableMethods) {
+          System.out.println("Checking " + methodSig2);
+          SootMethod sm2 = null;
+          try {
+            sm2 = Scene.v().getMethod(methodSig2);
+          } catch (Exception e) {
+
+          }
+          if (sm2 != null) {
+            // System.out.println("METHOD::: " + sm2.getSignature() + " at "
+            // + sm2.getJavaSourceStartLineNumber());
+
+            if (Scene.v().getReachableMethods().contains(sm2)) {
+              // System.out.println("REACHABLEMETHOD");
+              fWriter.write(methodSig2 + "\n");
+            }
+          }
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        try {
+          fWriter.close();
+        } catch (IOException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
+      }
+
+      // print all real rechable methods
+      if (cassCG.printAllRealRechableMethod == 1) {
+        CallGraphUtils.printReachableMethods(cassCG.rechableMethodFileName);
+      }
+
+    }
+
   }
 
   static void printConfigurationAPIs() {

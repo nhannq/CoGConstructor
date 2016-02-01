@@ -25,7 +25,7 @@ import java.util.Set;
 
 public class HBaseCallGraphConstructor extends GraphBuilderAbstract {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     List<String> argsList = new ArrayList<String>(Arrays.asList(args));
     HBaseCallGraphConstructor cassCG = new HBaseCallGraphConstructor();
     cassCG.initialize();
