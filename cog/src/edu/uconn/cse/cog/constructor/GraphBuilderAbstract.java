@@ -37,26 +37,31 @@ public class GraphBuilderAbstract {
 
   public static int countMatch;
   protected String libFile;
-  public String mainClass;
-  public String startingPointFile;
-  public String optionAPIFile;
-  public boolean parseOneOption;
-  public String oAPI;
-  public String currentOptionAPI;
-  public String mightRechableMethodFileName;
-  public String rechableMethodFileName;
-  public String reallyRechableMethodFileName;
-  public int detectRechableMethod;
-  public int printAllRealRechableMethod;
-  public String version;
+  private String mainClass;
+  protected String startingPointFile;
+  protected String optionAPIFile;
+  protected boolean parseOneOption;
+  protected String oAPI;
+  private String currentOptionAPI;
+  protected String mightRechableMethodFileName;
+  protected String rechableMethodFileName;
+  protected String reallyRechableMethodFileName;
+  protected int detectRechableMethod;
+  protected int printAllRealRechableMethod;
+  protected String version;
   protected FileWriter generalInfoFW;
   public CCGraph graph;
+  private int nbVertices = 0;
 
   protected static String programPrefix;
   // protected static Set<String> externalInvocationMethods = new HashSet<String>();
   protected static String externalInvocationMethods = null;
 
   Set<Unit> initialSeedData = new HashSet<Unit>();
+  
+  private Stack<SootMethod> sMStack = new Stack<SootMethod>();
+  private Stack<Integer> idStack = new Stack<Integer>();
+  final static int MAX_LEVEL = 0;
 
   protected void initialize() {
     libFile = "data/cass.txt";
@@ -225,9 +230,8 @@ public class GraphBuilderAbstract {
     }
   }
 
-  Stack<SootMethod> sMStack = new Stack<SootMethod>();
-  Stack<Integer> idStack = new Stack<Integer>();
 
+  
   // public void buildPartICoG(CallGraph cg, int srcId, SootMethod target) {
   // if (!target.getSignature().contains(programPrefix)) {
   // return;
@@ -255,7 +259,7 @@ public class GraphBuilderAbstract {
   // }
   // }
 
-  final static int MAX_LEVEL = 0;
+
 
   private void processExternalLibCall(CallGraph cg, String directParent, SootMethod target,
       int level) {
@@ -278,7 +282,7 @@ public class GraphBuilderAbstract {
     }
   }
 
-  int nbVertices = 0;
+
 
   private void buildCCGNoStack(CallGraph cg, int firstSrcId, SootMethod firstSource) {
     System.out.println("buildCCGNoStack");
