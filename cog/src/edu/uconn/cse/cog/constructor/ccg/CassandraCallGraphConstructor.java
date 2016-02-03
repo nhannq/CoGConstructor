@@ -85,6 +85,8 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     CallGraphUtils.printStartingPoints();
 
     cassCG.constructGraph();
+    
+    cassCG.graph.printStartingNodes();
 
     // String testClass = "org.apache.cassandra.db.ColumnFamilyStore";
     // if (Scene.v().containsClass(testClass)) {
