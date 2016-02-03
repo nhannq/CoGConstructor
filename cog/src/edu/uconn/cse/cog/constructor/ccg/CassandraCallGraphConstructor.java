@@ -195,6 +195,7 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
         }
 
         System.out.println("CoundnotFind " + couldnotFind);
+        cassCG.generalInfoFW.write("NB Settings  " + optionAPIS.size());
         cassCG.generalInfoFW.close();
       } catch (Exception e) {
 
@@ -240,7 +241,6 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
       }
 
     }
-
   }
 
   static void printConfigurationAPIs() {
