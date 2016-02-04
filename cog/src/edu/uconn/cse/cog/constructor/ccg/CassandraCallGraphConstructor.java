@@ -72,6 +72,7 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs"
     Options.v().setPhaseOption("jb", "use-original-names:true");
     Options.v().set_no_bodies_for_excluded(true);
+//    Options.v().set_verbose(true);
 
     // add custom entry points
     // https://github.com/Sable/soot/wiki/Using-Soot-with-custom-entry-points
@@ -80,12 +81,16 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     List addedStartingPoints = CallGraphUtils.getAddedStartingPointList(cassCG.startingPointFile);
 
     Scene.v().setEntryPoints(addedStartingPoints);
-    PackManager.v().runPacks();
+    try {
+      PackManager.v().runPacks();
+    } catch (Exception e) {
+
+    }
 
     CallGraphUtils.printStartingPoints();
 
     cassCG.constructGraph();
-    
+
     cassCG.graph.printStartingNodes();
 
     // String testClass = "org.apache.cassandra.db.ColumnFamilyStore";
@@ -174,20 +179,20 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     if (detectRechableMethod == 0) {
       int couldnotFind = 0;
       try {
-        generalInfoFW = new FileWriter("Cassandra" + version + ".txt");
+        generalInfoFW = new FileWriter(generalInfoFolder+"/Cassandra" + version + ".txt");
         if (!cassCG.parseOneOption) {
           for (String oAPI : optionAPIS) {
             System.out.println("------------\n");
             System.out.println("Analyzing " + oAPI);
-            generalInfoFW.write(oAPI + "\n");
+            
             int rs = analyseCallGraph(cg, confClasses, oAPI);
             if (rs == 0) {
               couldnotFind++;
             }
 
             System.out.println("============\n");
-            generalInfoFW.write(rs + "\n");
-            generalInfoFW.write("==========\n");
+            generalInfoFW.write(oAPI + "\t" + rs + "\n"); 
+//            generalInfoFW.write("==========\n");
           }
         } else {
           System.out.println("Analyzing " + oAPI);

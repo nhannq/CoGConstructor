@@ -49,6 +49,7 @@ public class GraphBuilderAbstract {
   protected int detectRechableMethod;
   protected int printAllRealRechableMethod;
   protected String version;
+  protected String generalInfoFolder;
   protected FileWriter generalInfoFW;
   public CCGraph graph;
   private int nbVertices = 0;
@@ -99,6 +100,7 @@ public class GraphBuilderAbstract {
       reallyRechableMethodFileName =
           prop.getProperty("reallyRechableMethodFileName") + version + ".txt";
       printAllRealRechableMethod = Integer.parseInt(prop.getProperty("printAllRealRechableMethod"));
+      generalInfoFolder = prop.getProperty("generalInfoFolder");
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -451,7 +453,7 @@ public class GraphBuilderAbstract {
               isBreak = true;
               graphID += graph.princetonDFS();
               System.out.println("nbVertices " + nbVertices);
-              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
+//              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
               // graph.removeCycle();
               // graph.DFS();
             }
