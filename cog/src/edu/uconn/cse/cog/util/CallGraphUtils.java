@@ -81,24 +81,34 @@ public class CallGraphUtils {
     }
 
   }
-  
+
   public static List getAddedStartingPointList(String startingPointFile) {
     List<String> customStartingPoints = new ArrayList<String>();
     List addedStartingPoints = new ArrayList();
     Util.readFile(startingPointFile, customStartingPoints);
-    
+
     for (String sPoint : customStartingPoints) {
       String className = sPoint.split(":")[0].replace("<", "");
       SootClass c = Scene.v().forceResolve(className, SootClass.BODIES);
       c.setApplicationClass();
       Scene.v().loadNecessaryClasses();
       SootMethod method = null;
+      String fullMethodName = sPoint.split(":")[1].trim().split("\\s+")[1].trim();
+      String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
+//      System.out.println(methodName);
       try {
-        // get method by subsignature
-        method = c.getMethod(sPoint.split(":")[1].trim().replace(">", ""));
-        if (method == null)
-          System.err.println("NULL METHOD");
-        System.out.println("method Sub Signature " + method.getSubSignature());
+        if (!methodName.contains("(")) {
+          method = c.getMethodByName(methodName);
+          if (method == null)
+            System.err.println("NULL METHOD");
+          System.out.println("method Sub Signature " + method.getSubSignature());
+        } else {
+          // get method by subsignature
+          method = c.getMethod(sPoint.split(":")[1].trim().replace(">", ""));
+//          if (method == null)
+//            System.err.println("NULL METHOD");
+//          System.out.println("method Sub Signature " + method.getSubSignature());
+        }
 
       } catch (Exception e) {
         e.printStackTrace();
