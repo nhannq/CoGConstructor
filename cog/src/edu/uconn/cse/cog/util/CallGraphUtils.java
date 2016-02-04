@@ -95,19 +95,20 @@ public class CallGraphUtils {
       SootMethod method = null;
       String fullMethodName = sPoint.split(":")[1].trim().split("\\s+")[1].trim();
       String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
-//      System.out.println(methodName);
+      // System.out.println(methodName);
       try {
         if (!methodName.contains("(")) {
           method = c.getMethodByName(methodName);
           if (method == null)
-            System.err.println("NULL METHOD");
-          System.out.println("method Sub Signature " + method.getSubSignature());
+            System.err.println("NULLMETHOD\t" + sPoint);
+//          else
+//            System.out.println("method Sub Signature " + method.getSubSignature());
         } else {
           // get method by subsignature
           method = c.getMethod(sPoint.split(":")[1].trim().replace(">", ""));
-//          if (method == null)
-//            System.err.println("NULL METHOD");
-//          System.out.println("method Sub Signature " + method.getSubSignature());
+          // if (method == null)
+          // System.err.println("NULL METHOD");
+          // System.out.println("method Sub Signature " + method.getSubSignature());
         }
 
       } catch (Exception e) {
