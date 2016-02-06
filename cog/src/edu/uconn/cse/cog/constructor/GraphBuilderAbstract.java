@@ -453,7 +453,7 @@ public class GraphBuilderAbstract {
               isBreak = true;
               graphID += graph.princetonDFS();
               System.out.println("nbVertices " + nbVertices);
-//              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
+              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
               // graph.removeCycle();
               // graph.DFS();
             }
