@@ -11,6 +11,7 @@ import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.UnitBox;
+import soot.Value;
 import soot.ValueBox;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
@@ -59,7 +61,7 @@ public class GraphBuilderAbstract {
   protected static String externalInvocationMethods = null;
 
   Set<Unit> initialSeedData = new HashSet<Unit>();
-  
+
   private Stack<SootMethod> sMStack = new Stack<SootMethod>();
   private Stack<Integer> idStack = new Stack<Integer>();
   final static int MAX_LEVEL = 0;
@@ -233,7 +235,7 @@ public class GraphBuilderAbstract {
   }
 
 
-  
+
   // public void buildPartICoG(CallGraph cg, int srcId, SootMethod target) {
   // if (!target.getSignature().contains(programPrefix)) {
   // return;
@@ -387,7 +389,8 @@ public class GraphBuilderAbstract {
 
   Set<String> markedAnalysisPoints = new HashSet<String>();
 
-  protected int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI) throws IOException {
+  protected int analyseCallGraph(CallGraph cg, Set<String> confClassNames, String optionAPI)
+      throws IOException {
     this.currentOptionAPI = optionAPI;
     countMatch = 0;
     SootMethod source;
@@ -409,6 +412,13 @@ public class GraphBuilderAbstract {
         }
 
         if (source != null) {
+          List<Value> parameters = source.getActiveBody().getParameterRefs();
+          for (Value v : parameters) {
+            List<ValueBox> valueBoxes = v.getUseBoxes();
+            for (ValueBox vb : valueBoxes) {
+              generalInfoFW.write("Parameter " + vb.getValue().toString() + "\n");
+            }
+          }
           System.out.println("Checking " + source.getSignature());
           // if (graph.containsNode(target.getSignature()) == -1) {
           System.out.println("Findng incoming edge");
@@ -416,6 +426,7 @@ public class GraphBuilderAbstract {
           System.out.println("FIRST NODE ID " + node.getId());
           // node.addOutNodeId(Integer.MAX_VALUE);
           int graphID = 1;
+
           Iterator sources = new Sources(cg.edgesInto(source));
           int nbMethodsWhichUseThisOption = 0;
           markedAnalysisPoints.clear();
