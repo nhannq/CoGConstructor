@@ -67,7 +67,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
 
     Options.v().parse(args);
-    Options.v().set_keep_line_number(true);
+//    Options.v().set_keep_line_number(true);
     Options.v().set_whole_program(true); // "-w"
     Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs"
     Options.v().setPhaseOption("jb", "use-original-names:true");
@@ -197,7 +197,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
             // generalInfoFW.write("==========\n");
           }
         } else {
-          System.out.println("Analyzing " + oAPI);
+          System.out.println("Analyzing OneOption " + oAPI);
           analyseCallGraph(cg, confClasses, oAPI);
           System.out.println("============\n");
           // cassCG.graph.DFS();

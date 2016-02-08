@@ -72,7 +72,7 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
     Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs"
     Options.v().setPhaseOption("jb", "use-original-names:true");
     Options.v().set_no_bodies_for_excluded(true);
-    Options.v().setPhaseOption("cg", "verbose:true");
+//    Options.v().setPhaseOption("cg", "verbose:true");
     // Options.v().set_verbose(true);
 
     // add custom entry points

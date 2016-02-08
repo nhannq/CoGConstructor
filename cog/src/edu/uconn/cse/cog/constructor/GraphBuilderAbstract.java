@@ -404,6 +404,11 @@ public class GraphBuilderAbstract {
         System.out.println("analyseCallGraph " + sClass.getName());
         source = null;
 
+//        for (SootMethod sm : sClass.getMethods()) {
+//          if (sm.hasActiveBody())
+//          System.out.println(sm.getSignature());
+//        }
+        
         // if (className.contains(sClass.getName())) {
         try {
           // example: getInt() in Hadoop
@@ -413,6 +418,7 @@ public class GraphBuilderAbstract {
 
         if (source != null) {
           List<Value> parameters = source.getActiveBody().getParameterRefs();
+          generalInfoFW.write("There are " + parameters.size());
           for (Value v : parameters) {
             List<ValueBox> valueBoxes = v.getUseBoxes();
             for (ValueBox vb : valueBoxes) {
@@ -427,7 +433,16 @@ public class GraphBuilderAbstract {
           // node.addOutNodeId(Integer.MAX_VALUE);
           int graphID = 1;
 
+          Iterator<Edge> edges = cg.edgesInto(source);
+          while (edges.hasNext()) {
+            Edge e = edges.next();
+            Stmt stmt = e.srcStmt();
+            if (stmt.containsInvokeExpr())
+            for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
+              System.out.println("FOUND PARAM  "+ stmt.getInvokeExpr().getArg(i));
+          }
           Iterator sources = new Sources(cg.edgesInto(source));
+          
           int nbMethodsWhichUseThisOption = 0;
           markedAnalysisPoints.clear();
           while (sources.hasNext()) {
@@ -435,7 +450,7 @@ public class GraphBuilderAbstract {
             graph.addNewNode(node.getId(), node);
             sMStack.clear();
             idStack.clear();
-            SootMethod src = (SootMethod) sources.next();
+            SootMethod src = (SootMethod) sources.next();            
             nbVertices = 0;
             if (!markedAnalysisPoints.contains(src.getSignature())) {
               markedAnalysisPoints.add(src.getSignature());
@@ -476,6 +491,8 @@ public class GraphBuilderAbstract {
 
           if (isBreak)
             break;
+        } else {
+          System.out.println("Cannot find method " + optionAPI);
         }
         // }
         if (isBreak)
