@@ -215,6 +215,8 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         generalInfoFW.close();
         settingNameFW.close();
         startingPointFW.close();
+        if (CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.Resource", "setMemory")) 
+          System.out.println("FINDTHISWEIREDMETHOD");
       } catch (Exception e) {
 
       }

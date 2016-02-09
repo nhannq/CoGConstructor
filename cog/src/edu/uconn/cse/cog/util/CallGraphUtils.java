@@ -81,6 +81,28 @@ public class CallGraphUtils {
     }
 
   }
+  
+  public static boolean checkReachableMethods(String className, String methodName) {
+    SootClass sClass = Scene.v().getSootClass(className);
+    if (sClass == null)
+      return false;
+    System.out.println("analyseCallGraph " + sClass.getName());
+    SootMethod sm = null;
+
+    // for (SootMethod sm : sClass.getMethods()) {
+    // if (sm.hasActiveBody())
+    // System.out.println(sm.getSignature());
+    // }
+
+    // if (className.contains(sClass.getName())) {
+    try {
+      // example: getInt() in Hadoop
+      sm = sClass.getMethodByName(methodName);
+      if (sm == null || !sm.hasActiveBody()) return false;    
+    } catch (Exception e) {
+    }
+    return true;
+  }
 
   public static List getAddedStartingPointList(String startingPointFile) {
     List<String> customStartingPoints = new ArrayList<String>();
