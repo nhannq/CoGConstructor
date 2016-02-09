@@ -91,7 +91,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
 
 //    CallGraphUtils.printStartingPoints();
 
-    cassCG.constructGraph();
+    cassCG.constructGraph(args[0]);
 
 //    cassCG.graph.printStartingNodes();
 
@@ -159,7 +159,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     System.out.println("Done " + HadoopCallGraphConstructor.class.getName());
   }
 
-  private void constructGraph() {
+  private void constructGraph(String logID) {
     programPrefix = "org.apache.hadoop";
     externalInvocationMethods = "org.apache.cassandra.thrift.Cassandra";
 
@@ -167,6 +167,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     Util.readFile(cassCG.optionAPIFile, optionAPIS);
 
     CallGraph cg = Scene.v().getCallGraph();
+
     Set<String> confClasses = new HashSet<String>() {
       /**
        * 
@@ -175,6 +176,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
 
       {
         add("org.apache.hadoop.conf.Configuration");
+        add("org.apache.hadoop.mapred.JobConf");
       }
     };
 
@@ -182,12 +184,16 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
       int couldnotFind = 0;
       try {
         generalInfoFW = new FileWriter(generalInfoFolder + "/Hadoop" + version + ".txt");
+        settingNameFW = new FileWriter(generalInfoFolder + "/Hadoop-Settings"+ version + "-" + logID + ".txt");
+        startingPointFW = new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID + ".txt");
         if (!cassCG.parseOneOption) {
           for (String oAPI : optionAPIS) {
             System.out.println("------------\n");
             System.out.println("Analyzing " + oAPI);
-
-            int rs = analyseCallGraph(cg, confClasses, oAPI);
+            String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
+            String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
+            
+            int rs = analyseCallGraph(cg, confClasses, methodName);
             if (rs == 0) {
               couldnotFind++;
             }
@@ -203,9 +209,12 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
           // cassCG.graph.DFS();
         }
 
+        graph.printStartingNodes(startingPointFW);
         System.out.println("CoundnotFind " + couldnotFind);
-        cassCG.generalInfoFW.write("NB Settings  " + optionAPIS.size());
-        cassCG.generalInfoFW.close();
+        generalInfoFW.write("NB Settings  " + optionAPIS.size());
+        generalInfoFW.close();
+        settingNameFW.close();
+        startingPointFW.close();
       } catch (Exception e) {
 
       }

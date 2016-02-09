@@ -319,12 +319,13 @@ public class CCGraph {
   }
 
 
-  public void printStartingNodes() {
+  public void printStartingNodes(FileWriter fw) throws IOException {
     System.out.println("\n=================**=================");
     System.out.println("UNIQUE STARTING NODES " + uniqueStartingNodes.size());
     System.out.println("STARTING NODES: " + startingNodes.size());
     for (StartingNode s : startingNodes.keySet()) {
       System.out.println(s);
+      fw.write(s + "\n");
     }
     System.out.println("=================**=================\n");
   }

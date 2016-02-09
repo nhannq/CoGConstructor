@@ -186,8 +186,10 @@ public class CassandraCallGraphConstructor extends GraphBuilderAbstract {
           for (String oAPI : optionAPIS) {
             System.out.println("------------\n");
             System.out.println("Analyzing " + oAPI);
+            String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
+            String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
 
-            int rs = analyseCallGraph(cg, confClasses, oAPI);
+            int rs = analyseCallGraph(cg, confClasses, methodName);
             if (rs == 0) {
               couldnotFind++;
             }

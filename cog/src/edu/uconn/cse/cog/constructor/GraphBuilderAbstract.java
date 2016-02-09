@@ -53,6 +53,9 @@ public class GraphBuilderAbstract {
   protected String version;
   protected String generalInfoFolder;
   protected FileWriter generalInfoFW;
+  protected FileWriter settingNameFW;
+  protected FileWriter startingPointFW;
+  protected String settingNameFileName;
   public CCGraph graph;
   private int nbVertices = 0;
 
@@ -103,6 +106,7 @@ public class GraphBuilderAbstract {
           prop.getProperty("reallyRechableMethodFileName") + version + ".txt";
       printAllRealRechableMethod = Integer.parseInt(prop.getProperty("printAllRealRechableMethod"));
       generalInfoFolder = prop.getProperty("generalInfoFolder");
+      settingNameFileName = prop.getProperty("settingNameFileName");
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -370,7 +374,13 @@ public class GraphBuilderAbstract {
           graph.addStartingNode(target.getSignature(), currentOptionAPI, node.getId());
           // }
           System.out.println("Starting Point " + target.getSignature() + " has ID " + node.getId());
+          if (startingPointFW != null) {
+            try {
+              startingPointFW.write(target.getSignature() + "\n");
+            } catch (Exception e) {
 
+            }
+          }
           // if (!srcSig.equals("NULL")) { // we need to recursively process to see we can reach a
           // // point inside the host program
           // sources = new Sources(cg.edgesInto(target));
@@ -404,11 +414,11 @@ public class GraphBuilderAbstract {
         System.out.println("analyseCallGraph " + sClass.getName());
         source = null;
 
-//        for (SootMethod sm : sClass.getMethods()) {
-//          if (sm.hasActiveBody())
-//          System.out.println(sm.getSignature());
-//        }
-        
+        // for (SootMethod sm : sClass.getMethods()) {
+        // if (sm.hasActiveBody())
+        // System.out.println(sm.getSignature());
+        // }
+
         // if (className.contains(sClass.getName())) {
         try {
           // example: getInt() in Hadoop
@@ -417,14 +427,20 @@ public class GraphBuilderAbstract {
         }
 
         if (source != null) {
-          List<Value> parameters = source.getActiveBody().getParameterRefs();
-          generalInfoFW.write("There are " + parameters.size());
-          for (Value v : parameters) {
-            List<ValueBox> valueBoxes = v.getUseBoxes();
-            for (ValueBox vb : valueBoxes) {
-              generalInfoFW.write("Parameter " + vb.getValue().toString() + "\n");
+          if (settingNameFW != null) {
+            Iterator<Edge> edges = cg.edgesInto(source);
+            while (edges.hasNext()) {
+              Edge e = edges.next();
+              Stmt stmt = e.srcStmt();
+              if (stmt.containsInvokeExpr())
+                // for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
+                if (stmt.getInvokeExpr().getArgCount() >= 2)
+                  settingNameFW.write(optionAPI + "\t"
+                      + stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim()
+                      + "\n");
             }
           }
+
           System.out.println("Checking " + source.getSignature());
           // if (graph.containsNode(target.getSignature()) == -1) {
           System.out.println("Findng incoming edge");
@@ -433,73 +449,65 @@ public class GraphBuilderAbstract {
           // node.addOutNodeId(Integer.MAX_VALUE);
           int graphID = 1;
 
-          Iterator<Edge> edges = cg.edgesInto(source);
-          while (edges.hasNext()) {
-            Edge e = edges.next();
-            Stmt stmt = e.srcStmt();
-            if (stmt.containsInvokeExpr())
-            for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
-              System.out.println("FOUND PARAM  "+ stmt.getInvokeExpr().getArg(i));
-          }
           Iterator sources = new Sources(cg.edgesInto(source));
-          
+
           int nbMethodsWhichUseThisOption = 0;
           markedAnalysisPoints.clear();
-          while (sources.hasNext()) {
-            graph = new CCGraph(this.version, graphID);
-            graph.addNewNode(node.getId(), node);
-            sMStack.clear();
-            idStack.clear();
-            SootMethod src = (SootMethod) sources.next();            
-            nbVertices = 0;
-            if (!markedAnalysisPoints.contains(src.getSignature())) {
-              markedAnalysisPoints.add(src.getSignature());
-              System.out.println("");
-              System.out.println(source + " " + source.getParameterCount()
-                  + " params might be called by " + src);
-              // we need to consider this to avoid exploding graph, for example
-              // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
-              // in Cassandra 2.1.8
+          if (sources.hasNext()) {
+            while (sources.hasNext()) {
+              graph = new CCGraph(this.version, graphID);
+              graph.addNewNode(node.getId(), node);
+              sMStack.clear();
+              idStack.clear();
+              SootMethod src = (SootMethod) sources.next();
+              nbVertices = 0;
+              if (!markedAnalysisPoints.contains(src.getSignature())) {
+                markedAnalysisPoints.add(src.getSignature());
+                System.out.println("");
+                System.out.println(source + " " + source.getParameterCount()
+                    + " params might be called by " + src);
+                // we need to consider this to avoid exploding graph, for example
+                // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
+                // in Cassandra 2.1.8
 
-              if (!src.getSubSignature().equals("void <clinit>()")) {
-                try {
-                  buildCCGNoStack(cg, node.getId(), src);
+                if (!src.getSubSignature().equals("void <clinit>()")) {
+                  try {
+                    buildCCGNoStack(cg, node.getId(), src);
 
-                  // System.out.println("NOT HERE");
-                } catch (Exception e) {
-                  e.printStackTrace();
+                    // System.out.println("NOT HERE");
+                  } catch (Exception e) {
+                    e.printStackTrace();
+                  }
+                } else { // if we do not deal with clinit, we need to create a starting node here
+                  graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
                 }
-              } else { // if we do not deal with clinit, we need to create a starting node here
-                graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
-              }
 
-              countMatch++;
-              getCallSiteInformation(src, optionAPI);
-              // return;
-              isBreak = true;
-              graphID += graph.princetonDFS();
-              System.out.println("nbVertices " + nbVertices);
-              generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
-              // graph.removeCycle();
-              // graph.DFS();
+                countMatch++;
+                getCallSiteInformation(src, optionAPI);
+                // return;
+                isBreak = true;
+                graphID += graph.princetonDFS();
+                System.out.println("nbVertices " + nbVertices);
+                generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
+                // graph.removeCycle();
+                // graph.DFS();
+              }
             }
+          } else {
+            System.out.println("No incoming edge ");
           }
-          // }
-          // else {
-          // System.out.println("Analyzed " + target.getSignature());
-          // }
 
           if (isBreak)
-            break;
+            continue;
         } else {
           System.out.println("Cannot find method " + optionAPI);
         }
         // }
         if (isBreak)
-          break;
+          continue;
       }
-      if (isBreak)
-        break;
+      // if (isBreak)
+      // break;
     }
     System.out.println("THERE ARE " + countMatch);
     return countMatch;
