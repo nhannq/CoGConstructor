@@ -29,7 +29,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     List<String> argsList = new ArrayList<String>(Arrays.asList(args));
     cassCG = new HadoopCallGraphConstructor();
     cassCG.initialize();
-    Util.readFile(cassCG.libFile, argsList);
+    Util.readFile(cassCG.libFile, argsList); // get a list of application classes
     argsList.add("-p");
     argsList.add("cg");
     argsList.add("all-reachable:true");
@@ -52,10 +52,11 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
 
     argsList.add("use-original-names:true");
     // argsList.add("-process-dir");
-    String mainClass = "org.apache.hadoop.mapred.JobClient";
-    argsList.add("-main-class");
-    argsList.add(mainClass);
-    argsList.add(mainClass);
+//    String mainClass = "org.apache.hadoop.mapred.JobClient";
+    // Do not need to add a main class
+    // argsList.add("-main-class"); //Sets the main class for whole-program analysis.
+    // argsList.add(mainClass);
+    // argsList.add(mainClass);
 
     args = argsList.toArray(new String[0]);
 
@@ -67,33 +68,34 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
 
     Options.v().parse(args);
-//    Options.v().set_keep_line_number(true);
+    // Options.v().set_keep_line_number(true);
     Options.v().set_whole_program(true); // "-w"
-    Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs"
+    Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs" //Allow unresolved classes;
+                                              // may cause errors, not recommended
     Options.v().setPhaseOption("jb", "use-original-names:true");
-    Options.v().set_no_bodies_for_excluded(true);
-    Options.v().setPhaseOption("cg", "verbose:true");
+    Options.v().set_no_bodies_for_excluded(true); // Do not load bodies for excluded classes
+    // Options.v().setPhaseOption("cg", "verbose:true");
     // Options.v().set_verbose(true);
 
     // add custom entry points
     // https://github.com/Sable/soot/wiki/Using-Soot-with-custom-entry-points
-
 
     List addedStartingPoints = CallGraphUtils.getAddedStartingPointList(cassCG.startingPointFile);
 
     Scene.v().setEntryPoints(addedStartingPoints);
     try {
       System.out.println("Running Packs");
+      //which will run all of Soot’s packs in the usual order
       PackManager.v().runPacks();
     } catch (Exception e) {
 
     }
 
-//    CallGraphUtils.printStartingPoints();
+    // CallGraphUtils.printStartingPoints();
 
     cassCG.constructGraph(args[0]);
 
-//    cassCG.graph.printStartingNodes();
+    // cassCG.graph.printStartingNodes();
 
     // String testClass = "org.apache.cassandra.db.ColumnFamilyStore";
     // if (Scene.v().containsClass(testClass)) {
@@ -167,7 +169,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     Util.readFile(cassCG.optionAPIFile, optionAPIS);
 
     CallGraph cg = Scene.v().getCallGraph();
-
+  
     Set<String> confClasses = new HashSet<String>() {
       /**
        * 
@@ -184,15 +186,18 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
       int couldnotFind = 0;
       try {
         generalInfoFW = new FileWriter(generalInfoFolder + "/Hadoop" + version + ".txt");
-        settingNameFW = new FileWriter(generalInfoFolder + "/Hadoop-Settings"+ version + "-" + logID + ".txt");
-        startingPointFW = new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID + ".txt");
+        settingNameFW =
+            new FileWriter(generalInfoFolder + "/Hadoop-Settings" + version + "-" + logID + ".txt");
+        startingPointFW =
+            new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID
+                + ".txt");
         if (!cassCG.parseOneOption) {
           for (String oAPI : optionAPIS) {
             System.out.println("------------\n");
             System.out.println("Analyzing " + oAPI);
             String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
             String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
-            
+
             int rs = analyseCallGraph(cg, confClasses, methodName);
             if (rs == 0) {
               couldnotFind++;
@@ -215,8 +220,12 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         generalInfoFW.close();
         settingNameFW.close();
         startingPointFW.close();
-        if (CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.Resource", "setMemory")) 
-          System.out.println("FINDTHISWEIREDMETHOD");
+        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
+            "createApplicationSubmissionContext");
+//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.security.UserGroupInformation",
+//            "initialize");
+//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl",
+//            "setMemory");
       } catch (Exception e) {
 
       }
@@ -264,8 +273,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
   }
 
   static void printConfigurationAPIs() {
-    SootClass optionLoadClass =
-        Scene.v().getSootClass("org.apache.hadoop.conf.Configuration");
+    SootClass optionLoadClass = Scene.v().getSootClass("org.apache.hadoop.conf.Configuration");
     for (SootMethod m : optionLoadClass.getMethods()) {
       System.out.println(m.getName() + " RETURNS " + m.getReturnType());
       if (m.hasActiveBody()) {

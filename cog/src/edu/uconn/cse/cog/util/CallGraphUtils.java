@@ -1,21 +1,24 @@
 package edu.uconn.cse.cog.util;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import soot.Body;
 import soot.MethodOrMethodContext;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
+import soot.UnitBox;
+import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.callgraph.Sources;
 import soot.jimple.toolkits.callgraph.Targets;
 import soot.util.queue.QueueReader;
-
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 public class CallGraphUtils {
   // print the information of which invocation is made inside the method methodSig
@@ -81,12 +84,21 @@ public class CallGraphUtils {
     }
 
   }
-  
+
   public static boolean checkReachableMethods(String className, String methodName) {
-    SootClass sClass = Scene.v().getSootClass(className);
-    if (sClass == null)
+    CallGraph cg = Scene.v().getCallGraph();
+    SootClass sClass = null;
+    try {
+      sClass = Scene.v().loadClassAndSupport(className); // .getSootClass(className);
+    } catch (Exception e) {
+
+    }
+    if (sClass == null) {
+      System.out.println("Class " + className + " doesn't exist");
       return false;
-    System.out.println("analyseCallGraph " + sClass.getName());
+    }
+    sClass.setApplicationClass();
+    System.out.println("checkReachableMethods " + sClass.getName());
     SootMethod sm = null;
 
     // for (SootMethod sm : sClass.getMethods()) {
@@ -98,8 +110,31 @@ public class CallGraphUtils {
     try {
       // example: getInt() in Hadoop
       sm = sClass.getMethodByName(methodName);
-      if (sm == null || !sm.hasActiveBody()) return false;    
+      if (sm == null) {
+        System.out.println("Method " + methodName + " is null");
+        return false;
+      }
+
+      if (!sm.hasActiveBody()) {
+        System.out.println("METHOD " + methodName + " does not have active body");
+        // return false;
+      } else
+        System.out.println("FINDTHISWEIREDMETHOD");
+      Iterator<Edge> edges = cg.edgesInto(sm);
+      while (edges.hasNext()) {
+        Edge e = edges.next();
+        Stmt stmt = e.srcStmt();
+        if (stmt.containsInvokeExpr())
+          // for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
+          if (stmt.getInvokeExpr().getArgCount() >= 1)
+            System.out.println("Params " + "\t"
+                + stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim() + " at "
+                + stmt.getJavaSourceStartLineNumber() + "\n");
+      }
+      Body b = sm.getActiveBody();
+      System.out.println(b.toString());
     } catch (Exception e) {
+      e.printStackTrace();
     }
     return true;
   }
@@ -123,8 +158,8 @@ public class CallGraphUtils {
           method = c.getMethodByName(methodName);
           if (method == null)
             System.err.println("NULLMETHOD\t" + sPoint);
-//          else
-//            System.out.println("method Sub Signature " + method.getSubSignature());
+          // else
+          // System.out.println("method Sub Signature " + method.getSubSignature());
         } else {
           // get method by subsignature
           method = c.getMethod(sPoint.split(":")[1].trim().replace(">", ""));
