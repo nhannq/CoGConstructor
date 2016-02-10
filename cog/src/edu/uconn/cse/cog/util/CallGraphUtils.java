@@ -85,7 +85,30 @@ public class CallGraphUtils {
 
   }
 
-  public static boolean checkReachableMethods(String className, String methodName) {
+  public static void checkReachableMethods(String className, String methodName, String programPrefix) {
+    try {
+      QueueReader<MethodOrMethodContext> reallyRechableMethods =
+          Scene.v().getReachableMethods().listener();
+
+      while (reallyRechableMethods.hasNext()) {
+        MethodOrMethodContext m = reallyRechableMethods.next();
+        String comparedClassName = m.method().getSignature().split(":")[0].replace("<", "");
+        String fullMethodName =
+            m.method().getSignature().split(":")[1].trim().split("\\s+")[1].trim();
+        String comparedMethodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
+        if (m.method().hasActiveBody() && m.method().getSignature().contains(programPrefix))
+          System.out.println(comparedClassName + "\t" + comparedMethodName);
+        if (className.equals(comparedClassName) && methodName.equals(comparedMethodName)) {
+          System.out.println("REACHABLE-METHOD " + methodName);
+        }
+      }
+    } catch (Exception e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+  }
+
+  public static boolean checkAMethodInCallGraph(String className, String methodName) {
     CallGraph cg = Scene.v().getCallGraph();
     SootClass sClass = null;
     try {
@@ -97,7 +120,7 @@ public class CallGraphUtils {
       System.out.println("Class " + className + " doesn't exist");
       return false;
     }
-    sClass.setApplicationClass();
+    // sClass.setApplicationClass();
     System.out.println("checkReachableMethods " + sClass.getName());
     SootMethod sm = null;
 

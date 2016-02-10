@@ -52,7 +52,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
 
     argsList.add("use-original-names:true");
     // argsList.add("-process-dir");
-//    String mainClass = "org.apache.hadoop.mapred.JobClient";
+    // String mainClass = "org.apache.hadoop.mapred.JobClient";
     // Do not need to add a main class
     // argsList.add("-main-class"); //Sets the main class for whole-program analysis.
     // argsList.add(mainClass);
@@ -74,7 +74,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
                                               // may cause errors, not recommended
     Options.v().setPhaseOption("jb", "use-original-names:true");
     Options.v().set_no_bodies_for_excluded(true); // Do not load bodies for excluded classes
-    // Options.v().setPhaseOption("cg", "verbose:true");
+     Options.v().setPhaseOption("cg.spark", "verbose:true");
     // Options.v().set_verbose(true);
 
     // add custom entry points
@@ -85,7 +85,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     Scene.v().setEntryPoints(addedStartingPoints);
     try {
       System.out.println("Running Packs");
-      //which will run all of Soot’s packs in the usual order
+      // which will run all of Soot’s packs in the usual order
       PackManager.v().runPacks();
     } catch (Exception e) {
 
@@ -169,7 +169,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     Util.readFile(cassCG.optionAPIFile, optionAPIS);
 
     CallGraph cg = Scene.v().getCallGraph();
-  
+
     Set<String> confClasses = new HashSet<String>() {
       /**
        * 
@@ -220,12 +220,15 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         generalInfoFW.close();
         settingNameFW.close();
         startingPointFW.close();
-        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
-            "createApplicationSubmissionContext");
-//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.security.UserGroupInformation",
-//            "initialize");
-//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl",
-//            "setMemory");
+        // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner",
+        // "createApplicationSubmissionContext");
+        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner", "submitJob");
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.security.UserGroupInformation",
+        // "initialize");
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl",
+        // "setMemory");
+         CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
+         "createApplicationSubmissionContext", programPrefix);
       } catch (Exception e) {
 
       }
