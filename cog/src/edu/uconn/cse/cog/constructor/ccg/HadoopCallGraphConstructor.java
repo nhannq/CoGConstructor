@@ -26,14 +26,14 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
   static HadoopCallGraphConstructor cassCG;
 
   public static void main(String[] args) {
-    List<String> argsList = new ArrayList<String>(Arrays.asList(args));
+    List<String> argsList = new ArrayList<String>();
     cassCG = new HadoopCallGraphConstructor();
     cassCG.initialize();
     Util.readFile(cassCG.libFile, argsList); // get a list of application classes
     argsList.add("-p");
     argsList.add("cg");
     argsList.add("all-reachable:true");
-    argsList.add("-asm-backend");
+    // argsList.add("-asm-backend");
 
     int server = 1;
     if (server == 1) { // using spark
@@ -43,20 +43,20 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
       argsList.add("-p");
       argsList.add("cg.spark");
       argsList.add("on-fly-cg:true");
-      argsList.add("pre-jimplify:true");
+      argsList.add("vta:false");
+      // argsList.add("pre-jimplify:true");
     } else if (server == 2) { // using paddle
       argsList.add("-p");
       argsList.add("cg.paddle");
       argsList.add("enabled:true");
     }
 
-    argsList.add("use-original-names:true");
     // argsList.add("-process-dir");
-    // String mainClass = "org.apache.hadoop.mapred.JobClient";
+    String mainClass = "org.apache.hadoop.mapred.YARNRunner";
     // Do not need to add a main class
-    // argsList.add("-main-class"); //Sets the main class for whole-program analysis.
-    // argsList.add(mainClass);
-    // argsList.add(mainClass);
+    argsList.add("-main-class"); // Sets the main class for whole-program analysis.
+    argsList.add(mainClass);
+    argsList.add(mainClass);
 
     args = argsList.toArray(new String[0]);
 
@@ -68,13 +68,23 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
 
     Options.v().parse(args);
-    // Options.v().set_keep_line_number(true);
+    Options.v().set_keep_line_number(true);
     Options.v().set_whole_program(true); // "-w"
     Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs" //Allow unresolved classes;
                                               // may cause errors, not recommended
     Options.v().setPhaseOption("jb", "use-original-names:true");
-    Options.v().set_no_bodies_for_excluded(true); // Do not load bodies for excluded classes
-     Options.v().setPhaseOption("cg.spark", "verbose:true");
+    // Do not load bodies for excluded classes, need to use this
+    Options.v().set_no_bodies_for_excluded(true);
+    Options.v().setPhaseOption("cg", "verbose:true");
+    Options.v().setPhaseOption("jb", "use-original-names:true");
+    Options.v().setPhaseOption("cg.spark", "geom-eval:2");
+    Options.v().setPhaseOption("cg.spark", "geom-pta:true");
+    Options.v().setPhaseOption("cg.spark", "cs-demand:true");
+    Options.v().setPhaseOption("cg.spark", "lazy-pts:false");
+    // Options.v().setPhaseOption("jb.ule", "enabled:false");
+    // Options.v().setPhaseOption("jb.uce", "enabled:false");
+
+    Scene.v().loadNecessaryClasses();
     // Options.v().set_verbose(true);
 
     // add custom entry points
@@ -90,6 +100,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     } catch (Exception e) {
 
     }
+
 
     // CallGraphUtils.printStartingPoints();
 
@@ -213,22 +224,29 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
           System.out.println("============\n");
           // cassCG.graph.DFS();
         }
-
-        graph.printStartingNodes(startingPointFW);
+        if (graph != null)
+          graph.printStartingNodes(startingPointFW);
         System.out.println("CoundnotFind " + couldnotFind);
         generalInfoFW.write("NB Settings  " + optionAPIS.size());
         generalInfoFW.close();
         settingNameFW.close();
         startingPointFW.close();
+        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin",
+            "main");
+
         // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner",
-        // "createApplicationSubmissionContext");
-        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner", "submitJob");
+        // "submitJob");
         // CallGraphUtils.checkReachableMethods("org.apache.hadoop.security.UserGroupInformation",
         // "initialize");
         // CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl",
         // "setMemory");
-         CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
-         "createApplicationSubmissionContext", programPrefix);
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
+        // "createApplicationSubmissionContext", programPrefix);
+        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
+            "getJobCounters", programPrefix);
+        CallGraphUtils.printStartingPoints();
+        System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
+        System.out.println(Scene.v().getCallGraph().toString());
       } catch (Exception e) {
 
       }

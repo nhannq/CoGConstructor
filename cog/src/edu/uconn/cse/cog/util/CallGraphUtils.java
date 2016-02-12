@@ -87,21 +87,24 @@ public class CallGraphUtils {
 
   public static void checkReachableMethods(String className, String methodName, String programPrefix) {
     try {
+      Scene.v().getReachableMethods().update();
       QueueReader<MethodOrMethodContext> reallyRechableMethods =
           Scene.v().getReachableMethods().listener();
-
+      int countReachableMethods = 0;
       while (reallyRechableMethods.hasNext()) {
         MethodOrMethodContext m = reallyRechableMethods.next();
+        countReachableMethods++;
         String comparedClassName = m.method().getSignature().split(":")[0].replace("<", "");
         String fullMethodName =
             m.method().getSignature().split(":")[1].trim().split("\\s+")[1].trim();
         String comparedMethodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
-        if (m.method().hasActiveBody() && m.method().getSignature().contains(programPrefix))
+        if (m.method().getSignature().contains(programPrefix))
           System.out.println(comparedClassName + "\t" + comparedMethodName);
         if (className.equals(comparedClassName) && methodName.equals(comparedMethodName)) {
           System.out.println("REACHABLE-METHOD " + methodName);
         }
       }
+      System.out.println("NB REACHABLE METHODS " + countReachableMethods);
     } catch (Exception e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
@@ -121,7 +124,7 @@ public class CallGraphUtils {
       return false;
     }
     // sClass.setApplicationClass();
-    System.out.println("checkReachableMethods " + sClass.getName());
+    System.out.println("checkAMethodInCallGraph " + sClass.getName());
     SootMethod sm = null;
 
     // for (SootMethod sm : sClass.getMethods()) {
@@ -156,6 +159,9 @@ public class CallGraphUtils {
       }
       Body b = sm.getActiveBody();
       System.out.println(b.toString());
+      if (Scene.v().getReachableMethods().contains(sm)) {
+        System.out.println("REACHABLE " + sm.getSignature());
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
