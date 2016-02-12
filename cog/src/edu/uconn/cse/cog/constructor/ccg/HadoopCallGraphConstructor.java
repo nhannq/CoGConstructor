@@ -1,8 +1,11 @@
 package edu.uconn.cse.cog.constructor.ccg;
 
-import edu.uconn.cse.cog.constructor.GraphBuilderAbstract;
-import edu.uconn.cse.cog.util.CallGraphUtils;
-import edu.uconn.cse.cog.util.Util;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import soot.Body;
 import soot.PackManager;
@@ -13,27 +16,23 @@ import soot.Unit;
 import soot.jimple.ReturnStmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.options.Options;
-
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import edu.uconn.cse.cog.constructor.GraphBuilderAbstract;
+import edu.uconn.cse.cog.util.CallGraphUtils;
+import edu.uconn.cse.cog.util.Util;
 
 public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
   static HadoopCallGraphConstructor cassCG;
 
   public static void main(String[] args) {
     List<String> argsList = new ArrayList<String>();
+    argsList.add(args[0]);
     cassCG = new HadoopCallGraphConstructor();
     cassCG.initialize();
     Util.readFile(cassCG.libFile, argsList); // get a list of application classes
     argsList.add("-p");
     argsList.add("cg");
     argsList.add("all-reachable:true");
-    // argsList.add("-asm-backend");
+    argsList.add("-asm-backend");
 
     int server = 1;
     if (server == 1) { // using spark
@@ -75,12 +74,12 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     Options.v().setPhaseOption("jb", "use-original-names:true");
     // Do not load bodies for excluded classes, need to use this
     Options.v().set_no_bodies_for_excluded(true);
-    Options.v().setPhaseOption("cg", "verbose:true");
+    // Options.v().setPhaseOption("cg", "verbose:true");
     Options.v().setPhaseOption("jb", "use-original-names:true");
-    Options.v().setPhaseOption("cg.spark", "geom-eval:2");
-    Options.v().setPhaseOption("cg.spark", "geom-pta:true");
-    Options.v().setPhaseOption("cg.spark", "cs-demand:true");
-    Options.v().setPhaseOption("cg.spark", "lazy-pts:false");
+    // Options.v().setPhaseOption("cg.spark", "geom-eval:2");
+    // Options.v().setPhaseOption("cg.spark", "geom-pta:true");
+    // Options.v().setPhaseOption("cg.spark", "cs-demand:true");
+    // Options.v().setPhaseOption("cg.spark", "lazy-pts:false");
     // Options.v().setPhaseOption("jb.ule", "enabled:false");
     // Options.v().setPhaseOption("jb.uce", "enabled:false");
 
@@ -231,8 +230,7 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         generalInfoFW.close();
         settingNameFW.close();
         startingPointFW.close();
-        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin",
-            "main");
+//        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin", "main");
 
         // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner",
         // "submitJob");
@@ -242,11 +240,11 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         // "setMemory");
         // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
         // "createApplicationSubmissionContext", programPrefix);
-        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
-            "getJobCounters", programPrefix);
-        CallGraphUtils.printStartingPoints();
-        System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
-        System.out.println(Scene.v().getCallGraph().toString());
+//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
+//            "getJobCounters", programPrefix);
+//        CallGraphUtils.printStartingPoints();
+//        System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
+//        System.out.println(Scene.v().getCallGraph().toString());
       } catch (Exception e) {
 
       }
