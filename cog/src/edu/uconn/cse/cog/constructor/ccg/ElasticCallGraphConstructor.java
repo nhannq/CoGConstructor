@@ -1,219 +1,131 @@
 package edu.uconn.cse.cog.constructor.ccg;
 
 import edu.uconn.cse.cog.constructor.GraphBuilderAbstract;
+import edu.uconn.cse.cog.util.CallGraphUtils;
 import edu.uconn.cse.cog.util.Util;
 
 import soot.Body;
-import soot.MethodOrMethodContext;
 import soot.PackManager;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.ReturnStmt;
+import soot.jimple.infoflow.entryPointCreators.SequentialEntryPointCreator;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.options.Options;
-import soot.util.queue.QueueReader;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class ElasticCallGraphConstructor extends GraphBuilderAbstract {
+  static ElasticCallGraphConstructor cassCG;
 
-  public static void main(String[] args) throws IOException {
-    List<String> argsList = new ArrayList<String>(Arrays.asList(args));
-    ElasticCallGraphConstructor cassCG = new ElasticCallGraphConstructor();
+  public static void main(String[] args) {
+    List<String> argsList = new ArrayList<String>();
+    argsList.add(args[0]);
+    cassCG = new ElasticCallGraphConstructor();
     cassCG.initialize();
-    // argsList.add("-w");
-    Util.readFile(cassCG.libFile, argsList);
-    // argsList.add("-allow-phantom-refs");
-    // argsList.add("-p");
-    // argsList.add("jb");
-    // argsList.add("use-original-names:true");
-    // argsList.add("verbose");
+    Util.readFile(cassCG.libFile, argsList); // get a list of application classes
     argsList.add("-p");
     argsList.add("cg");
     argsList.add("all-reachable:true");
-    // argsList.add("-time");
     argsList.add("-asm-backend");
 
     int server = 1;
-    if (server == 1) {
+    if (server == 1) { // using spark
       argsList.add("-p");
       argsList.add("cg.spark");
       argsList.add("enabled:true");
       argsList.add("-p");
       argsList.add("cg.spark");
       argsList.add("on-fly-cg:true");
-      argsList.add("pre-jimplify:true");
-    } else if (server == 2) {
+      argsList.add("vta:false");
+      // argsList.add("pre-jimplify:true");
+    } else if (server == 2) { // using paddle
       argsList.add("-p");
       argsList.add("cg.paddle");
       argsList.add("enabled:true");
     }
 
-    argsList.add("use-original-names:true");
     // argsList.add("-process-dir");
-    String mainClass = "org.apache.cassandra.service.CassandraDaemon";
-    argsList.add("-main-class");
-    argsList.add(mainClass);
-    argsList.add(mainClass);
+    // String mainClass = "org.apache.hadoop.mapred.YARNRunner";
+    // // //Do not need to add a main class
+    // argsList.add("-main-class"); // Sets the main class for whole-program analysis.
+    // argsList.add(mainClass);
+    // argsList.add(mainClass);
 
     args = argsList.toArray(new String[0]);
 
-    System.out.println("JB " + PackManager.v().getPack("jb").getDefaultOptions());
-    System.out.println("JBLS " + PackManager.v().getPhase("jb.ls").getDefaultOptions());
-    System.out.println("JBDAE " + PackManager.v().getPhase("jb.dae").getDefaultOptions());
-    System.out.println("CHCHA " + PackManager.v().getPhase("cg.cha").getDeclaredOptions());
-    System.out.println("CG " + PackManager.v().getPack("cg").getDeclaredOptions());
-    System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
+    // System.out.println("JB " + PackManager.v().getPack("jb").getDefaultOptions());
+    // System.out.println("JBLS " + PackManager.v().getPhase("jb.ls").getDefaultOptions());
+    // System.out.println("JBDAE " + PackManager.v().getPhase("jb.dae").getDefaultOptions());
+    // System.out.println("CHCHA " + PackManager.v().getPhase("cg.cha").getDeclaredOptions());
+    // System.out.println("CG " + PackManager.v().getPack("cg").getDeclaredOptions());
+    // System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
 
     Options.v().parse(args);
     Options.v().set_keep_line_number(true);
-    Options.v().set_whole_program(true);
-    Options.v().set_allow_phantom_refs(true);
+    Options.v().set_whole_program(true); // "-w"
+    Options.v().set_allow_phantom_refs(true); // "-allow-phantom-refs" //Allow unresolved classes;
+                                              // may cause errors, not recommended
     Options.v().setPhaseOption("jb", "use-original-names:true");
+    // Do not load bodies for excluded classes, need to use this
     Options.v().set_no_bodies_for_excluded(true);
+    // Options.v().setPhaseOption("cg", "verbose:true");
+    Options.v().setPhaseOption("jb", "use-original-names:true");
+    // Options.v().setPhaseOption("cg.spark", "geom-eval:2");
+    // Options.v().setPhaseOption("cg.spark", "geom-pta:true");
+    // Options.v().setPhaseOption("cg.spark", "cs-demand:true");
+    // Options.v().setPhaseOption("cg.spark", "lazy-pts:false");
+    // Options.v().setPhaseOption("jb.ule", "enabled:false");
+    // Options.v().setPhaseOption("jb.uce", "enabled:false");
+
+    Scene.v().loadNecessaryClasses();
+    // Options.v().set_verbose(true);
 
     // add custom entry points
     // https://github.com/Sable/soot/wiki/Using-Soot-with-custom-entry-points
-    List<String> customEntryPoints = new ArrayList<String>();
-    Util.readFile(cassCG.startingPointFile, customEntryPoints);
 
-    List addedEntryPoints = new ArrayList();
-    for (String ePoint : customEntryPoints) {
-      SootClass c = Scene.v().forceResolve(ePoint.split(":")[0], SootClass.BODIES);
-      c.setApplicationClass();
-      Scene.v().loadNecessaryClasses();
-      SootMethod method = null;
-      String methodName = ePoint.split(":")[1];
-      if (!methodName.contains("(")) {
-        try {
-          method = c.getMethodByName(methodName);
-        } catch (Exception e) {
+//    List addedStartingPoints = CallGraphUtils.getAddedStartingPointList(cassCG.startingPointFile);
 
-        }
-      } else {
-        try {
-          method = c.getMethod(methodName);
-        } catch (Exception e) {
+    List<String> customStartingPoints = new ArrayList<String>();
+    Util.readFile(cassCG.startingPointFile, customStartingPoints);
+    SequentialEntryPointCreator sEntryPointCreater =
+        new SequentialEntryPointCreator(customStartingPoints);
+//    sEntryPointCreater.createDummyMain();
 
-        }
-      }
-      if (method != null)
-        addedEntryPoints.add(method);
-      // System.err.println(method.getSignature()); //print to get the entry points with correct
-      // format
-    }
-    Scene.v().setEntryPoints(addedEntryPoints);
-    PackManager.v().runPacks();
+    SootMethod entryPoint = sEntryPointCreater.createDummyMain();
+    Scene.v().setEntryPoints(Collections.singletonList(entryPoint));
+    if (Scene.v().containsClass(entryPoint.getDeclaringClass().getName()))
+      Scene.v().removeClass(entryPoint.getDeclaringClass());
+    Scene.v().addClass(entryPoint.getDeclaringClass());
 
-    // printConfigurationAPIs();
-
-    // String className = "org.apache.cassandra.cql3.QueryProcessor";
-    // String methodSig =
-    // "<org.apache.cassandra.cql3.QueryProcessor: org.apache.cassandra.transport.messages.ResultMessage processStatement(org.apache.cassandra.cql3.CQLStatement,org.apache.cassandra.service.QueryState,org.apache.cassandra.cql3.QueryOptions)>";
-    // className = "org.apache.cassandra.io.sstable.SSTableRewriter$InvalidateKeys";
-    // methodSig =
-    // "<org.apache.cassandra.io.sstable.SSTableRewriter$InvalidateKeys: void <init>(org.apache.cassandra.io.sstable.SSTableReader,java.util.Collection)>";
-    // CallGraphUtils.printTargets(className, methodSig);
-
-    printEntryPoints();
-
-    programPrefix = "org.apache.cassandra";
-    externalInvocationMethods = "org.apache.cassandra.thrift.Cassandra";
-
-    List<String> optionAPIS = new ArrayList<String>();
-    Util.readFile(cassCG.optionAPIFile, optionAPIS);
-
-    CallGraph cg = Scene.v().getCallGraph();
-    Set<String> confClasses = new HashSet<String>() {
-      {
-        add("org.apache.cassandra.config.DatabaseDescriptor");
-      }
-    };
-
-    if (cassCG.detectRechableMethod == 0) {
-      int couldnotFind = 0;
-      if (!cassCG.parseOneOption) {
-        for (String oAPI : optionAPIS) {
-          // String oAPI = "getAuthenticator";
-          System.out.println("------------\n");
-          System.out.println("Analyzing " + oAPI);
-          if (cassCG.analyseCallGraph(cg, confClasses, oAPI) == 0) {
-            couldnotFind++;
-          }
-          System.out.println("============\n");
-          
-        }
-      } else {
-        // String oAPI = "getAuthenticator";
-        System.out.println("Analyzing " + cassCG.oAPI);
-        cassCG.analyseCallGraph(cg, confClasses, cassCG.oAPI);
-        System.out.println("============\n");
-//        cassCG.graph.DFS();
-      }
-      
-      System.out.println("CoundnotFind " + couldnotFind);
-    } else {
-
-      FileWriter fWriter = null;
-      try {
-        fWriter = new FileWriter(cassCG.rechableMethodFileName);
-        List<String> reachableMethods = new ArrayList<String>();
-        Util.readFile(cassCG.mightRechableMethodFileName, reachableMethods);
-        for (String methodSig2 : reachableMethods) {
-          System.out.println("Checking " + methodSig2);
-          SootMethod sm2 = null;
-          try {
-            sm2 = Scene.v().getMethod(methodSig2);
-          } catch (Exception e) {
-
-          }
-          if (sm2 != null) {
-            // System.out.println("METHOD::: " + sm2.getSignature() + " at "
-            // + sm2.getJavaSourceStartLineNumber());
-
-            if (Scene.v().getReachableMethods().contains(sm2)) {
-              // System.out.println("REACHABLEMETHOD");
-              fWriter.write(methodSig2 + "\n");
-            }
-          }
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      } finally {
-        try {
-          fWriter.close();
-        } catch (IOException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-      }
-
-      // print all real rechable methods
-      if (cassCG.printAllRealRechableMethod == 1) {
-        try {
-          FileWriter f = new FileWriter(cassCG.reallyRechableMethodFileName);
-          QueueReader<MethodOrMethodContext> reallyRechableMethods =
-              Scene.v().getReachableMethods().listener();
-          while (reallyRechableMethods.hasNext()) {
-            MethodOrMethodContext m = reallyRechableMethods.next();
-            f.write(m.method().getSignature() + "\n");
-          }
-          f.close();
-        } catch (IOException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-      }
+    // Scene.v().setEntryPoints(addedStartingPoints);
+    try {
+      System.out.println("Running Packs");
+      // which will run all of Soot’s packs in the usual order
+      PackManager.v().runPacks();
+    } catch (Exception e) {
 
     }
+
+    String cName = "org.elasticsearch.common.settings.Settings";
+//    // cName = "org.apache.hadoop.hdfs.server.datanode.DataNode";
+//    printConfigurationAPIs(cName);
+//
+//    checkMethodInClass("org.apache.hadoop.conf.Configuration",
+//        "java.lang.String[] getTrimmedStrings(java.lang.String)");
+    // CallGraphUtils.printStartingPoints();
+
+     cassCG.constructGraph(args[0]);
+
+    // cassCG.graph.printStartingNodes();
 
     // String testClass = "org.apache.cassandra.db.ColumnFamilyStore";
     // if (Scene.v().containsClass(testClass)) {
@@ -276,40 +188,157 @@ public class ElasticCallGraphConstructor extends GraphBuilderAbstract {
     // };
     //
     // infoflow.computeInfoflow(appPath, "", entryPointList, sources, sinks);
+    System.out.println("Done " + ElasticCallGraphConstructor.class.getName());
   }
 
-  static void printEntryPoints() {
-    List<SootMethod> entryPoints = Scene.v().getEntryPoints();
-    for (SootMethod sMethod : entryPoints) {
-      System.out.println("EntryPoint::: " + sMethod.getName() + " " + sMethod.getSignature()
-          + " of " + sMethod.getDeclaringClass().getName());
-      // Iterator sources = new Sources(cg.edgesInto(sMethod));
+  private void constructGraph(String logID) {
+    programPrefix = "org.elasticsearch";
+    externalInvocationMethods = "org.apache.cassandra.thrift.Cassandra";
 
-      // while (sources.hasNext()) {
-      // SootMethod src = (SootMethod) sources.next();
-      // if (src.getDeclaringClass().getName().contains("org.apache"))
-      // System.out.println(sMethod + " might be called by " + src);
-      // }
-      // break;
-    }
-  }
+    List<String> optionAPIS = new ArrayList<String>();
+    Util.readFile(cassCG.optionAPIFile, optionAPIS);
 
-  static void printConfigurationAPIs() {
-    SootClass optionLoadClass =
-        Scene.v().getSootClass("org.apache.cassandra.config.DatabaseDescriptor");
-    for (SootMethod m : optionLoadClass.getMethods()) {
-      System.out.println(m.getName() + " RETURNS " + m.getReturnType());
-      if (m.hasActiveBody()) {
-        Body b = m.getActiveBody();
-        for (Unit u : b.getUnits()) {
-          System.out.println(u);
-          if (u instanceof ReturnStmt) {
-            ReturnStmt rStmt = (ReturnStmt) u;
-            System.out.println(rStmt);
+    CallGraph cg = Scene.v().getCallGraph();
+
+    Set<String> confClasses = new HashSet<String>() {
+      /**
+       * 
+       */
+      private static final long serialVersionUID = 1L;
+
+      {
+        add("org.elasticsearch.common.settings.Settings");
+      }
+    };
+
+    if (detectRechableMethod == 0) {
+      int couldnotFind = 0;
+      try {
+        // generalInfoFW = new FileWriter(generalInfoFolder + "/Hadoop" + version + ".txt");
+        settingNameFW =
+            new FileWriter(generalInfoFolder + "/ES-Settings" + version + "-" + logID + ".txt");
+        // startingPointFW =
+        // new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID
+        // + ".txt");
+        if (!cassCG.parseOneOption) {
+          //oAPI: subsignature of an option API
+          for (String oAPI : optionAPIS) {
+            // System.out.println("------------\n");
+            // System.out.println("Analyzing " + oAPI);
+//            String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
+//            String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
+
+            int rs = analyseCallGraph(cg, confClasses, oAPI);
+            if (rs == 0) {
+              couldnotFind++;
+            }
+
+            // System.out.println("============\n");
+            // generalInfoFW.write(oAPI + "\t" + rs + "\n");
+            // generalInfoFW.write("==========\n");
+          }
+        } else {
+          System.out.println("Analyzing OneOption " + oAPI);
+          analyseCallGraph(cg, confClasses, oAPI);
+          System.out.println("============\n");
+          // cassCG.graph.DFS();
+        }
+        // if (graph != null)
+        // graph.printStartingNodes(startingPointFW);
+        // System.out.println("CoundnotFind " + couldnotFind);
+        // generalInfoFW.write("NB Settings  " + optionAPIS.size());
+        // generalInfoFW.close();
+        settingNameFW.close();
+        // startingPointFW.close();
+        // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin", "main");
+
+        // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner",
+        // "submitJob");
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.security.UserGroupInformation",
+        // "initialize");
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl",
+        // "setMemory");
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
+        // "createApplicationSubmissionContext", programPrefix);
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
+        // "getJobCounters", programPrefix);
+        // CallGraphUtils.printStartingPoints();
+        // System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
+        // System.out.println(Scene.v().getCallGraph().toString());
+      } catch (Exception e) {
+
+      }
+    } else {
+      FileWriter fWriter = null;
+      try {
+        fWriter = new FileWriter(cassCG.rechableMethodFileName);
+        List<String> reachableMethods = new ArrayList<String>();
+        Util.readFile(cassCG.mightRechableMethodFileName, reachableMethods);
+        for (String methodSig2 : reachableMethods) {
+          System.out.println("Checking " + methodSig2);
+          SootMethod sm2 = null;
+          try {
+            sm2 = Scene.v().getMethod(methodSig2);
+          } catch (Exception e) {
+
+          }
+          if (sm2 != null) {
+            // System.out.println("METHOD::: " + sm2.getSignature() + " at "
+            // + sm2.getJavaSourceStartLineNumber());
+
+            if (Scene.v().getReachableMethods().contains(sm2)) {
+              // System.out.println("REACHABLEMETHOD");
+              fWriter.write(methodSig2 + "\n");
+            }
           }
         }
-        System.out.println("======");
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        try {
+          fWriter.close();
+        } catch (IOException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
       }
+
+      // print all real rechable methods
+      if (cassCG.printAllRealRechableMethod == 1) {
+        CallGraphUtils.printReachableMethods(cassCG.rechableMethodFileName);
+      }
+
     }
   }
+
+  static void printConfigurationAPIs(String className) {
+    SootClass optionLoadClass = Scene.v().getSootClass(className);
+    for (SootMethod m : optionLoadClass.getMethods()) {
+      System.out.println(m.getSubSignature());
+      // System.out.println(m.getName() + " RETURNS " + m.getReturnType());
+      // if (m.hasActiveBody()) {
+      // Body b = m.getActiveBody();
+      // for (Unit u : b.getUnits()) {
+      // System.out.println(u);
+      // if (u instanceof ReturnStmt) {
+      // ReturnStmt rStmt = (ReturnStmt) u;
+      // System.out.println(rStmt);
+      // }
+      // }
+      // System.out.println("======");
+      // }
+    }
+  }
+
+  static void checkMethodInClass(String className, String methodSubSignature) {
+    SootClass loadClass = Scene.v().getSootClass(className);
+    if (loadClass != null) {
+      SootMethod sm = loadClass.getMethod(methodSubSignature);
+      if (sm != null) {
+        System.out.println("FOUNDIT " + methodSubSignature);
+      }
+
+    }
+  }
+
 }
