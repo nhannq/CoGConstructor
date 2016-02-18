@@ -404,7 +404,8 @@ public class GraphBuilderAbstract {
     this.currentOptionAPI = optionAPI;
     countMatch = 0;
     SootMethod source;
-
+    String fullMethodName = optionAPI.trim().split("\\s+")[1].trim();
+    String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
     boolean isBreak = false;
 
     for (String className : confClassNames) {
@@ -422,7 +423,7 @@ public class GraphBuilderAbstract {
         // if (className.contains(sClass.getName())) {
         try {
           // example: getInt() in Hadoop
-          source = sClass.getMethodByName(optionAPI);
+          source = sClass.getMethod(optionAPI);
         } catch (Exception e) {
         }
 
@@ -434,10 +435,13 @@ public class GraphBuilderAbstract {
               Stmt stmt = e.srcStmt();
               if (stmt.containsInvokeExpr())
                 // for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
-                if (stmt.getInvokeExpr().getArgCount() >= 2)
-                  settingNameFW.write(optionAPI + "\t"
-                      + stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim()
-                      + "\n");
+                // some option API only has one parameter such as getTrimmed
+                if (stmt.getInvokeExpr().getArgCount() >= 1) {
+                  String optionName =
+                      stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim();
+                  if (!optionName.contains("$"))
+                    settingNameFW.write(methodName + "\t" + optionName + "\n");
+                }
             }
           }
 
@@ -453,49 +457,30 @@ public class GraphBuilderAbstract {
 
           int nbMethodsWhichUseThisOption = 0;
           markedAnalysisPoints.clear();
-          if (sources.hasNext()) {
-            while (sources.hasNext()) {
-              graph = new CCGraph(this.version, graphID);
-              graph.addNewNode(node.getId(), node);
-              sMStack.clear();
-              idStack.clear();
-              SootMethod src = (SootMethod) sources.next();
-              nbVertices = 0;
-              if (!markedAnalysisPoints.contains(src.getSignature())) {
-                markedAnalysisPoints.add(src.getSignature());
-                System.out.println("");
-                System.out.println(source + " " + source.getParameterCount()
-                    + " params might be called by " + src);
-                // we need to consider this to avoid exploding graph, for example
-                // getConcurrentCounterWriters of org.apache.cassandra.concurrent.StageManager
-                // in Cassandra 2.1.8
-
-                if (!src.getSubSignature().equals("void <clinit>()")) {
-                  try {
-                    buildCCGNoStack(cg, node.getId(), src);
-
-                    // System.out.println("NOT HERE");
-                  } catch (Exception e) {
-                    e.printStackTrace();
-                  }
-                } else { // if we do not deal with clinit, we need to create a starting node here
-                  graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId());
-                }
-
-                countMatch++;
-                getCallSiteInformation(src, optionAPI);
-                // return;
-                isBreak = true;
-                graphID += graph.princetonDFS();
-                System.out.println("nbVertices " + nbVertices);
-                generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n");
-                // graph.removeCycle();
-                // graph.DFS();
-              }
-            }
-          } else {
-            System.out.println("No incoming edge ");
-          }
+          /*
+           * if (sources.hasNext()) { while (sources.hasNext()) { graph = new CCGraph(this.version,
+           * graphID); graph.addNewNode(node.getId(), node); sMStack.clear(); idStack.clear();
+           * SootMethod src = (SootMethod) sources.next(); nbVertices = 0; if
+           * (!markedAnalysisPoints.contains(src.getSignature())) {
+           * markedAnalysisPoints.add(src.getSignature()); System.out.println("");
+           * System.out.println(source + " " + source.getParameterCount() +
+           * " params might be called by " + src); // we need to consider this to avoid exploding
+           * graph, for example // getConcurrentCounterWriters of
+           * org.apache.cassandra.concurrent.StageManager // in Cassandra 2.1.8
+           * 
+           * if (!src.getSubSignature().equals("void <clinit>()")) { try { // buildCCGNoStack(cg,
+           * node.getId(), src);
+           * 
+           * // System.out.println("NOT HERE"); } catch (Exception e) { e.printStackTrace(); } }
+           * else { // if we do not deal with clinit, we need to create a starting node here
+           * graph.addStartingNode(source.getSignature(), currentOptionAPI, node.getId()); }
+           * 
+           * countMatch++; getCallSiteInformation(src, optionAPI); // return; isBreak = true;
+           * graphID += graph.princetonDFS(); System.out.println("nbVertices " + nbVertices);
+           * generalInfoFW.write(src.getSignature() + "\t" + nbVertices + "\n"); //
+           * graph.removeCycle(); // graph.DFS(); } } } else {
+           * System.out.println("No incoming edge "); }
+           */
 
           if (isBreak)
             continue;

@@ -1,11 +1,8 @@
 package edu.uconn.cse.cog.constructor.ccg;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import edu.uconn.cse.cog.constructor.GraphBuilderAbstract;
+import edu.uconn.cse.cog.util.CallGraphUtils;
+import edu.uconn.cse.cog.util.Util;
 
 import soot.Body;
 import soot.PackManager;
@@ -14,11 +11,17 @@ import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.ReturnStmt;
+import soot.jimple.infoflow.entryPointCreators.SequentialEntryPointCreator;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.options.Options;
-import edu.uconn.cse.cog.constructor.GraphBuilderAbstract;
-import edu.uconn.cse.cog.util.CallGraphUtils;
-import edu.uconn.cse.cog.util.Util;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
   static HadoopCallGraphConstructor cassCG;
@@ -51,20 +54,20 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     }
 
     // argsList.add("-process-dir");
-    String mainClass = "org.apache.hadoop.mapred.YARNRunner";
-    // Do not need to add a main class
-    argsList.add("-main-class"); // Sets the main class for whole-program analysis.
-    argsList.add(mainClass);
-    argsList.add(mainClass);
+    // String mainClass = "org.apache.hadoop.mapred.YARNRunner";
+    // // //Do not need to add a main class
+    // argsList.add("-main-class"); // Sets the main class for whole-program analysis.
+    // argsList.add(mainClass);
+    // argsList.add(mainClass);
 
     args = argsList.toArray(new String[0]);
 
-    System.out.println("JB " + PackManager.v().getPack("jb").getDefaultOptions());
-    System.out.println("JBLS " + PackManager.v().getPhase("jb.ls").getDefaultOptions());
-    System.out.println("JBDAE " + PackManager.v().getPhase("jb.dae").getDefaultOptions());
-    System.out.println("CHCHA " + PackManager.v().getPhase("cg.cha").getDeclaredOptions());
-    System.out.println("CG " + PackManager.v().getPack("cg").getDeclaredOptions());
-    System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
+    // System.out.println("JB " + PackManager.v().getPack("jb").getDefaultOptions());
+    // System.out.println("JBLS " + PackManager.v().getPhase("jb.ls").getDefaultOptions());
+    // System.out.println("JBDAE " + PackManager.v().getPhase("jb.dae").getDefaultOptions());
+    // System.out.println("CHCHA " + PackManager.v().getPhase("cg.cha").getDeclaredOptions());
+    // System.out.println("CG " + PackManager.v().getPack("cg").getDeclaredOptions());
+    // System.out.println(PackManager.v().getPhase("cg.spark").getDeclaredOptions());
 
     Options.v().parse(args);
     Options.v().set_keep_line_number(true);
@@ -89,9 +92,21 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     // add custom entry points
     // https://github.com/Sable/soot/wiki/Using-Soot-with-custom-entry-points
 
-    List addedStartingPoints = CallGraphUtils.getAddedStartingPointList(cassCG.startingPointFile);
+//    List addedStartingPoints = CallGraphUtils.getAddedStartingPointList(cassCG.startingPointFile);
 
-    Scene.v().setEntryPoints(addedStartingPoints);
+    List<String> customStartingPoints = new ArrayList<String>();
+    Util.readFile(cassCG.startingPointFile, customStartingPoints);
+    SequentialEntryPointCreator sEntryPointCreater =
+        new SequentialEntryPointCreator(customStartingPoints);
+//    sEntryPointCreater.createDummyMain();
+
+    SootMethod entryPoint = sEntryPointCreater.createDummyMain();
+    Scene.v().setEntryPoints(Collections.singletonList(entryPoint));
+    if (Scene.v().containsClass(entryPoint.getDeclaringClass().getName()))
+      Scene.v().removeClass(entryPoint.getDeclaringClass());
+    Scene.v().addClass(entryPoint.getDeclaringClass());
+
+    // Scene.v().setEntryPoints(addedStartingPoints);
     try {
       System.out.println("Running Packs");
       // which will run all of Soot’s packs in the usual order
@@ -100,10 +115,15 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
 
     }
 
-
+    String cName = "org.apache.hadoop.conf.Configuration";
+//    // cName = "org.apache.hadoop.hdfs.server.datanode.DataNode";
+    printConfigurationAPIs(cName);
+//
+//    checkMethodInClass("org.apache.hadoop.conf.Configuration",
+//        "java.lang.String[] getTrimmedStrings(java.lang.String)");
     // CallGraphUtils.printStartingPoints();
 
-    cassCG.constructGraph(args[0]);
+//     cassCG.constructGraph(args[0]);
 
     // cassCG.graph.printStartingNodes();
 
@@ -195,26 +215,27 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     if (detectRechableMethod == 0) {
       int couldnotFind = 0;
       try {
-        generalInfoFW = new FileWriter(generalInfoFolder + "/Hadoop" + version + ".txt");
+        // generalInfoFW = new FileWriter(generalInfoFolder + "/Hadoop" + version + ".txt");
         settingNameFW =
             new FileWriter(generalInfoFolder + "/Hadoop-Settings" + version + "-" + logID + ".txt");
-        startingPointFW =
-            new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID
-                + ".txt");
+        // startingPointFW =
+        // new FileWriter(generalInfoFolder + "/Hadoop-StartingPoints" + version + "-" + logID
+        // + ".txt");
         if (!cassCG.parseOneOption) {
+          //oAPI: subsignature of an option API
           for (String oAPI : optionAPIS) {
-            System.out.println("------------\n");
-            System.out.println("Analyzing " + oAPI);
-            String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
-            String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
+            // System.out.println("------------\n");
+            // System.out.println("Analyzing " + oAPI);
+//            String fullMethodName = oAPI.split(":")[1].trim().split("\\s+")[1].trim();
+//            String methodName = fullMethodName.substring(0, fullMethodName.indexOf("("));
 
-            int rs = analyseCallGraph(cg, confClasses, methodName);
+            int rs = analyseCallGraph(cg, confClasses, oAPI);
             if (rs == 0) {
               couldnotFind++;
             }
 
-            System.out.println("============\n");
-            generalInfoFW.write(oAPI + "\t" + rs + "\n");
+            // System.out.println("============\n");
+            // generalInfoFW.write(oAPI + "\t" + rs + "\n");
             // generalInfoFW.write("==========\n");
           }
         } else {
@@ -223,14 +244,14 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
           System.out.println("============\n");
           // cassCG.graph.DFS();
         }
-        if (graph != null)
-          graph.printStartingNodes(startingPointFW);
-        System.out.println("CoundnotFind " + couldnotFind);
-        generalInfoFW.write("NB Settings  " + optionAPIS.size());
-        generalInfoFW.close();
+        // if (graph != null)
+        // graph.printStartingNodes(startingPointFW);
+        // System.out.println("CoundnotFind " + couldnotFind);
+        // generalInfoFW.write("NB Settings  " + optionAPIS.size());
+        // generalInfoFW.close();
         settingNameFW.close();
-        startingPointFW.close();
-//        CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin", "main");
+        // startingPointFW.close();
+        // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.tracing.TraceAdmin", "main");
 
         // CallGraphUtils.checkAMethodInCallGraph("org.apache.hadoop.mapred.YARNRunner",
         // "submitJob");
@@ -240,11 +261,11 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
         // "setMemory");
         // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.YARNRunner",
         // "createApplicationSubmissionContext", programPrefix);
-//        CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
-//            "getJobCounters", programPrefix);
-//        CallGraphUtils.printStartingPoints();
-//        System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
-//        System.out.println(Scene.v().getCallGraph().toString());
+        // CallGraphUtils.checkReachableMethods("org.apache.hadoop.mapred.ClientServiceDelegate",
+        // "getJobCounters", programPrefix);
+        // CallGraphUtils.printStartingPoints();
+        // System.out.println("GRAPH SIZE " + Scene.v().getCallGraph().size());
+        // System.out.println(Scene.v().getCallGraph().toString());
       } catch (Exception e) {
 
       }
@@ -291,21 +312,33 @@ public class HadoopCallGraphConstructor extends GraphBuilderAbstract {
     }
   }
 
-  static void printConfigurationAPIs() {
-    SootClass optionLoadClass = Scene.v().getSootClass("org.apache.hadoop.conf.Configuration");
+  static void printConfigurationAPIs(String className) {
+    SootClass optionLoadClass = Scene.v().getSootClass(className);
     for (SootMethod m : optionLoadClass.getMethods()) {
-      System.out.println(m.getName() + " RETURNS " + m.getReturnType());
-      if (m.hasActiveBody()) {
-        Body b = m.getActiveBody();
-        for (Unit u : b.getUnits()) {
-          System.out.println(u);
-          if (u instanceof ReturnStmt) {
-            ReturnStmt rStmt = (ReturnStmt) u;
-            System.out.println(rStmt);
-          }
-        }
-        System.out.println("======");
+      System.out.println(m.getSubSignature());
+      // System.out.println(m.getName() + " RETURNS " + m.getReturnType());
+      // if (m.hasActiveBody()) {
+      // Body b = m.getActiveBody();
+      // for (Unit u : b.getUnits()) {
+      // System.out.println(u);
+      // if (u instanceof ReturnStmt) {
+      // ReturnStmt rStmt = (ReturnStmt) u;
+      // System.out.println(rStmt);
+      // }
+      // }
+      // System.out.println("======");
+      // }
+    }
+  }
+
+  static void checkMethodInClass(String className, String methodSubSignature) {
+    SootClass loadClass = Scene.v().getSootClass(className);
+    if (loadClass != null) {
+      SootMethod sm = loadClass.getMethod(methodSubSignature);
+      if (sm != null) {
+        System.out.println("FOUNDIT " + methodSubSignature);
       }
+
     }
   }
 

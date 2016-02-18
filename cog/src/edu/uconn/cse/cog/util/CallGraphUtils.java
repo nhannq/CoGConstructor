@@ -157,6 +157,20 @@ public class CallGraphUtils {
                 + stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim() + " at "
                 + stmt.getJavaSourceStartLineNumber() + "\n");
       }
+      System.out.println("out edge");
+      edges = cg.edgesOutOf(sm);
+      while (edges.hasNext()) {
+        Edge e = edges.next();
+        System.out.println(e.tgt().getSignature());
+//          Stmt stmt = e.srcStmt();
+//        
+//        if (stmt.containsInvokeExpr())
+//          // for (int i = 0; i < stmt.getInvokeExpr().getArgCount(); ++i)
+//          if (stmt.getInvokeExpr().getArgCount() >= 1)
+//            System.out.println("Params " + "\t"
+//                + stmt.getInvokeExpr().getArg(0).toString().replaceAll("\"", "").trim() + " at "
+//                + stmt.getJavaSourceStartLineNumber() + "\n");
+      }
       Body b = sm.getActiveBody();
       System.out.println(b.toString());
       if (Scene.v().getReachableMethods().contains(sm)) {
